@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: verba
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: DATA_DIR
+        value: "/app/data"
+    disk:
+      name: verba-data
+      mountPath: /app/data
+      sizeGB: 1

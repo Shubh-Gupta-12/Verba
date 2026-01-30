@@ -1,0 +1,1187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Document Q&A Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --sidebar-bg: #ffffff;
+        --sidebar-width: 280px;
+        --primary: #6366f1;
+        --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        --primary-glow: rgba(99, 102, 241, 0.4);
+        --bg-main: #f8fafc;
+        --bg-card: rgba(255, 255, 255, 0.8);
+        --glass-border: rgba(255, 255, 255, 0.5);
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --text-light: #94a3b8;
+        --border: #e2e8f0;
+        --success: #10b981;
+        --error: #ef4444;
+        --msg-user-bg: #6366f1;
+        --msg-user-text: #ffffff;
+        --msg-ai-bg: #ffffff;
+        --msg-ai-text: #1e293b;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+        --shadow-lg: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+        --radius-lg: 24px;
+        --radius-md: 16px;
+        --radius-sm: 12px;
+      }
+      
+      [data-theme="dark"] {
+        --sidebar-bg: #0f172a;
+        --bg-main: #020617;
+        --bg-card: rgba(30, 41, 59, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.05);
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --text-light: #64748b;
+        --border: #334155;
+        --msg-user-bg: #6366f1;
+        --msg-user-text: #ffffff;
+        --msg-ai-bg: #1e293b;
+        --msg-ai-text: #e2e8f0;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+        --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3);
+      }
+      
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      
+      body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background-color: var(--bg-main);
+        background-image: 
+          radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+          radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+        color: var(--text-primary);
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+        transition: background-color 0.3s ease;
+      }
+
+      /* Sidebar */
+      .sidebar {
+        width: var(--sidebar-width);
+        background: var(--sidebar-bg);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        z-index: 20;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .sidebar-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding-bottom: 32px;
+        margin-bottom: 0;
+      }
+      
+      .logo {
+        width: 48px;
+        height: 48px;
+        background: rgba(99, 102, 241, 0.1);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+        color: var(--primary);
+      }
+      
+      .logo svg {
+        width: 100%;
+        height: 100%;
+      }
+      
+      .sidebar-title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        background: var(--primary-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .new-chat-btn {
+        width: 100%;
+        background: var(--primary-gradient);
+        color: #fff;
+        border: none;
+        padding: 16px;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px var(--primary-glow);
+        margin-bottom: 32px;
+      }
+      
+      .new-chat-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px var(--primary-glow);
+      }
+      
+      .new-chat-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .sidebar-section-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-light);
+        margin-bottom: 16px;
+        padding-left: 12px;
+      }
+
+      .session-list {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 8px; /* For scrollbar space */
+      }
+      
+      .session-list::-webkit-scrollbar {
+        width: 4px;
+      }
+      
+      .session-list::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 4px;
+      }
+
+      .session-item {
+        padding: 14px 16px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+        color: var(--text-secondary);
+        gap: 8px;
+        overflow: hidden;
+      }
+      
+      .session-title {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 14px;
+      }
+      
+      .session-item:hover {
+        background: var(--bg-main);
+        color: var(--text-primary);
+      }
+      
+      .session-item.active {
+        background: var(--bg-card);
+        border-color: var(--border);
+        color: var(--text-primary);
+        box-shadow: var(--shadow-sm);
+        font-weight: 500;
+      }
+
+      .delete-btn {
+        background: none;
+        border: none;
+        color: var(--text-light);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 8px;
+        opacity: 0;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .session-item:hover .delete-btn {
+        opacity: 1;
+      }
+      
+      .delete-btn:hover {
+        color: var(--error);
+        background: rgba(239, 68, 68, 0.1);
+      }
+
+      /* Main Content */
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+      }
+
+      /* Header */
+      .header {
+        padding: 24px 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: transparent;
+        z-index: 10;
+      }
+      
+      .header h1 {
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        color: var(--text-primary);
+      }
+      
+      .theme-toggle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: transparent;
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        color: var(--text-secondary);
+      }
+      
+      .theme-toggle:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(99, 102, 241, 0.05);
+      }
+      
+      .theme-toggle svg {
+        width: 20px;
+        height: 20px;
+      }
+      
+      /* In light mode: show moon (to switch to dark) */
+      .theme-toggle .sun-icon {
+        display: none;
+      }
+      
+      /* In dark mode: show sun (to switch to light) */
+      [data-theme="dark"] .theme-toggle .moon-icon {
+        display: none;
+      }
+      
+      [data-theme="dark"] .theme-toggle .sun-icon {
+        display: block;
+      }
+
+      /* Content Area */
+      .content-area {
+        flex: 1;
+        display: flex;
+        padding: 0 40px 40px 40px;
+        gap: 32px;
+        overflow: hidden;
+      }
+
+      .panel {
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .panel-header {
+        padding: 24px 32px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      
+      .panel-header h3 {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
+      }
+
+      /* Documents Panel */
+      .documents-panel {
+        width: 300px;
+        flex-shrink: 0;
+      }
+
+      .panel-content {
+        flex: 1;
+        padding: 24px 32px;
+        overflow-y: auto;
+      }
+
+      /* Upload Area */
+      .upload-area {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius-md);
+        padding: 40px 24px;
+        text-align: center;
+        margin-bottom: 24px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      
+      .upload-area:hover, .upload-area.drag-over {
+        border-color: var(--primary);
+        background: rgba(99, 102, 241, 0.03);
+        transform: translateY(-2px);
+      }
+      
+      .upload-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 16px;
+        color: var(--primary);
+        opacity: 0.8;
+      }
+      
+      .upload-text {
+        color: var(--text-secondary);
+        font-size: 14px;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+      
+      .upload-browse {
+        color: var(--primary);
+        font-weight: 600;
+        cursor: pointer;
+        position: relative;
+        text-decoration: none;
+      }
+      
+      .upload-browse::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 1px;
+        bottom: -2px;
+        left: 0;
+        background: var(--primary);
+        transform: scaleX(0);
+        transition: transform 0.2s ease;
+      }
+      
+      .upload-browse:hover::after {
+        transform: scaleX(1);
+      }
+
+      #file-input { display: none; }
+
+      /* Document List */
+      .document-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px;
+        background: var(--bg-main);
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        margin-bottom: 12px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .document-item:hover {
+        border-color: var(--border);
+        background: #fff; /* In dark mode needs adjustment, tricky with vars */
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+      }
+      [data-theme="dark"] .document-item:hover {
+         background: rgba(255,255,255,0.05);
+      }
+
+      .doc-info {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        min-width: 0;
+      }
+      
+      .doc-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(99, 102, 241, 0.1);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: var(--primary);
+      }
+      
+      .doc-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .doc-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .doc-delete-btn {
+        background: none;
+        border: none;
+        color: var(--text-light);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 6px;
+        opacity: 0;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .document-item:hover .doc-delete-btn {
+        opacity: 1;
+      }
+      
+      .doc-delete-btn:hover {
+        color: var(--error);
+        background: rgba(239, 68, 68, 0.1);
+      }
+
+      .status-badge {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 20px;
+      }
+      
+      .status-badge.ready { background: rgba(16, 185, 129, 0.15); color: var(--success); }
+      .status-badge.processing { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+      .status-badge.failed { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+
+      /* Chat Panel */
+      .chat-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--glass-border);
+      }
+
+      .chat-header {
+        padding: 24px 32px;
+        border-bottom: 1px solid var(--border);
+      }
+      
+      .chatting-with {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-light);
+        margin-bottom: 6px;
+      }
+      
+      .chat-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--text-primary);
+        letter-spacing: -0.01em;
+      }
+
+      .chat-window {
+        flex: 1;
+        padding: 32px 40px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        scroll-behavior: smooth;
+      }
+
+      .message {
+        max-width: 85%;
+        animation: fadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .message.user { align-self: flex-end; align-items: flex-end; }
+      .message.assistant { align-self: flex-start; align-items: flex-start; }
+
+      .message-content {
+        padding: 16px 24px;
+        border-radius: 20px;
+        font-size: 15px;
+        line-height: 1.6;
+        box-shadow: var(--shadow-sm);
+        position: relative;
+      }
+      
+      .message.user .message-content {
+        background: var(--msg-user-bg);
+        color: var(--msg-user-text);
+        border-bottom-right-radius: 4px;
+        background-image: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+      }
+      
+      .message.assistant .message-content {
+        background: var(--msg-ai-bg);
+        color: var(--msg-ai-text);
+        border-bottom-left-radius: 4px;
+        border: 1px solid var(--border);
+      }
+
+      /* Chat Input */
+      .chat-input-area {
+        padding: 24px 32px;
+        background: transparent;
+        border-top: 1px solid var(--border);
+      }
+
+      .chat-input-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--bg-card);
+        border-radius: var(--radius-lg);
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-sm);
+        transition: all 0.3s ease;
+      }
+      
+      .chat-input-container:focus-within {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+      }
+
+      .chat-input-container textarea {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 15px;
+        border: none;
+        background: transparent;
+        color: var(--text-primary);
+        resize: none;
+        min-height: 24px;
+        max-height: 120px;
+        line-height: 1.5;
+        font-family: inherit;
+      }
+      
+      .chat-input-container textarea::placeholder {
+        color: var(--text-light);
+      }
+      
+      .chat-input-container textarea:focus {
+        outline: none;
+      }
+
+      .send-btn {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        height: 40px;
+        padding: 0 20px;
+        border-radius: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+        flex-shrink: 0;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      
+      .send-btn span { display: inline; }
+      
+      .send-btn:hover:not(:disabled) {
+        background: var(--primary-hover);
+        box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+      }
+      
+      .send-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      
+      .send-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      /* Empty / No Session */
+      .no-session-panel {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        padding: 40px;
+      }
+      
+      .no-session-icon {
+        width: 96px;
+        height: 96px;
+        margin-bottom: 32px;
+        background: rgba(99, 102, 241, 0.05);
+        border-radius: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary);
+      }
+      
+      .no-session-icon svg { width: 48px; height: 48px; }
+
+      .start-btn {
+        background: var(--primary-gradient);
+        color: #fff;
+        padding: 16px 32px;
+        border-radius: 50px; /* Pill shape */
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      }
+      
+      .start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+      }
+
+      /* Mobile bits */
+      .mobile-menu-btn {
+        display: none;
+        background: transparent;
+        border: none;
+        color: var(--text-primary);
+        padding: 8px;
+        cursor: pointer;
+      }
+      
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.2);
+        backdrop-filter: blur(4px);
+        z-index: 40;
+        transition: opacity 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Media Queries */
+      @media (max-width: 1024px) {
+        .content-area { padding: 0 24px 24px 24px; gap: 24px; }
+        .sidebar { width: 260px; } 
+        .documents-panel { width: 280px; }
+      }
+
+      @media (max-width: 768px) {
+        .sidebar {
+          position: fixed;
+          left: -100%;
+          top: 0;
+          bottom: 0;
+          width: 280px;
+          box-shadow: 20px 0 40px rgba(0,0,0,0.1);
+        }
+        .sidebar.open { left: 0; }
+        .sidebar-overlay.active { display: block; }
+        .mobile-menu-btn { display: block; }
+        
+        .header { padding: 16px 20px; }
+        .header h1 { font-size: 18px; }
+        
+        .content-area {
+          flex-direction: column;
+          padding: 0 16px 16px 16px;
+          gap: 16px;
+        }
+        
+        .documents-panel, .chat-panel { width: 100%; min-height: auto; }
+        .documents-panel { order: 2; max-height: 300px; }
+        .chat-panel { order: 1; flex: 1; min-height: 400px; }
+        
+        .chat-window { padding: 20px; }
+        .chat-input-area { padding: 12px; }
+        .message { max-width: 90%; }
+        
+        .upload-area { padding: 24px; }
+        
+        .send-btn span { display: none; }
+        .send-btn { padding: 0; width: 40px; }
+      }
+    </style>
+  </head>
+  <body>
+    {% csrf_token %}
+    
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <svg viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M50 75 L5 20 Q3 15 8 12 L20 8 Q25 6 28 12 L50 50" stroke="#1e5bb5" stroke-width="10" stroke-linecap="round" fill="none"/>
+            <path d="M50 75 L95 20 Q97 15 92 12 L80 8 Q75 6 72 12 L50 50" stroke="#2dd4bf" stroke-width="10" stroke-linecap="round" fill="none"/>
+            <circle cx="50" cy="18" r="5" fill="#67e8f9"/>
+            <path d="M50 25 L50 35" stroke="#67e8f9" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="sidebar-title">Verba</span>
+      </div>
+      
+      <button class="new-chat-btn" id="new-chat-btn">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        New Chat
+      </button>
+      
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Recent Chats</div>
+        <div class="session-list" id="session-list"></div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="header">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="mobile-menu-btn" id="mobile-menu-btn">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+          </button>
+          <h1>Document Q&A Assistant</h1>
+        </div>
+        <div class="header-actions">
+          <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+            <svg class="moon-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+            </svg>
+            <svg class="sun-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- No Session State -->
+      <div id="no-session-msg" class="content-area" style="display:none;">
+        <div class="panel no-session-panel" style="flex:1;">
+          <div class="no-session-content">
+            <div class="no-session-icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+              </svg>
+            </div>
+            <h2>Start a New Conversation</h2>
+            <p>Upload documents and ask questions to get AI-powered insights from your files.</p>
+            <button class="start-btn" id="start-chat-btn">
+              Start New Chat
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Container -->
+      <div class="content-area" id="main-container" style="display:none;">
+        <!-- Documents Panel -->
+        <section class="panel documents-panel">
+          <div class="panel-header">
+            <h3>Documents</h3>
+          </div>
+          <div class="panel-content">
+            <!-- Upload Area -->
+            <div class="upload-area" id="upload-area">
+              <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+              <p class="upload-text">Drag and drop files here</p>
+              <p class="upload-text">or <span class="upload-browse">browse</span></p>
+              <input type="file" id="file-input" accept=".pdf,.docx,.txt" />
+            </div>
+            
+            <!-- Documents List -->
+            <div id="documents"></div>
+          </div>
+        </section>
+
+        <!-- Chat Panel -->
+        <section class="panel chat-panel">
+          <div class="chat-header">
+            <p class="chatting-with">Chatting with:</p>
+            <h3 class="chat-title" id="chat-title">Your Documents</h3>
+          </div>
+          
+          <div class="chat-window" id="chat-window"></div>
+          
+          <div class="chat-input-area">
+            <div class="chat-input-container">
+              <textarea id="question" placeholder="Ask a question about your documents..." rows="1"></textarea>
+              <button class="send-btn" id="ask-button">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                </svg>
+                <span>Ask</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      let currentSessionId = null;
+
+      const sessionList = document.getElementById("session-list");
+      const documentsContainer = document.getElementById("documents");
+      const chatWindow = document.getElementById("chat-window");
+      const askButton = document.getElementById("ask-button");
+      const questionInput = document.getElementById("question");
+      const uploadArea = document.getElementById("upload-area");
+      const fileInput = document.getElementById("file-input");
+      const newChatBtn = document.getElementById("new-chat-btn");
+      const startChatBtn = document.getElementById("start-chat-btn");
+      const mainContainer = document.getElementById("main-container");
+      const noSessionMsg = document.getElementById("no-session-msg");
+      const chatTitle = document.getElementById("chat-title");
+
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+      // Auto-resize textarea
+      questionInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+      });
+
+      const showMainContent = (show) => {
+        mainContainer.style.display = show ? "flex" : "none";
+        noSessionMsg.style.display = show ? "none" : "flex";
+      };
+
+      const renderSessions = (sessions) => {
+        sessionList.innerHTML = "";
+        if (!sessions.length) {
+          sessionList.innerHTML = '<div class="empty-state"><p>No chats yet</p></div>';
+          return;
+        }
+        sessions.forEach((s) => {
+          const item = document.createElement("div");
+          item.className = `session-item${s.id === currentSessionId ? " active" : ""}`;
+          item.innerHTML = `
+            <span class="session-title">${s.title}</span>
+            <button class="delete-btn" data-id="${s.id}">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          `;
+          item.addEventListener("click", (e) => {
+            if (!e.target.closest(".delete-btn")) {
+              loadSession(s.id);
+              closeSidebarOnMobile();
+            }
+          });
+          item.querySelector(".delete-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteSession(s.id);
+          });
+          sessionList.appendChild(item);
+        });
+      };
+
+      const renderDocuments = (docs) => {
+        documentsContainer.innerHTML = "";
+        if (!docs.length) {
+          documentsContainer.innerHTML = '<div class="empty-state"><p>No documents uploaded</p></div>';
+          return;
+        }
+        
+        // Update chat title
+        const readyDocs = docs.filter(d => d.status === 'ready');
+        if (readyDocs.length > 0) {
+          chatTitle.textContent = readyDocs[0].name;
+        }
+        
+        docs.forEach((doc) => {
+          const wrapper = document.createElement("div");
+          wrapper.className = "document-item";
+          wrapper.innerHTML = `
+            <div class="doc-info">
+              <div class="doc-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+              </div>
+              <span class="doc-name">${doc.name}</span>
+            </div>
+            <div class="doc-actions">
+              <span class="status-badge ${doc.status}">${doc.status}</span>
+              <button class="doc-delete-btn" data-id="${doc.id}" title="Remove document">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          `;
+          wrapper.querySelector(".doc-delete-btn").addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteDocument(doc.id);
+          });
+          documentsContainer.appendChild(wrapper);
+        });
+      };
+
+      const renderMessages = (messages) => {
+        chatWindow.innerHTML = "";
+        messages.forEach((msg) => {
+          addMessage(msg.role, msg.content);
+        });
+      };
+
+      const addMessage = (role, content) => {
+        const message = document.createElement("div");
+        message.className = `message ${role}`;
+        message.innerHTML = `<div class="message-content">${content}</div>`;
+        chatWindow.appendChild(message);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      };
+
+      const fetchSessions = async () => {
+        const res = await fetch("/api/sessions/");
+        const data = await res.json();
+        renderSessions(data.sessions || []);
+        
+        if (!currentSessionId && data.sessions?.length) {
+          loadSession(data.sessions[0].id);
+        } else if (!data.sessions?.length) {
+          showMainContent(false);
+        }
+      };
+
+      const loadSession = async (sessionId) => {
+        currentSessionId = sessionId;
+        const res = await fetch(`/api/sessions/${sessionId}/`);
+        const data = await res.json();
+        
+        renderMessages(data.messages || []);
+        renderDocuments(data.documents || []);
+        showMainContent(true);
+        
+        if (!data.documents?.length) {
+          chatTitle.textContent = data.title || "Your Documents";
+        }
+        
+        document.querySelectorAll(".session-item").forEach((item) => {
+          item.classList.remove("active");
+        });
+        const activeItem = document.querySelector(`.session-item .delete-btn[data-id="${sessionId}"]`)?.parentElement;
+        if (activeItem) activeItem.classList.add("active");
+      };
+
+      const createNewSession = async () => {
+        const res = await fetch("/api/sessions/create/", {
+          method: "POST",
+          headers: { "X-CSRFToken": csrfToken },
+        });
+        const data = await res.json();
+        currentSessionId = data.id;
+        await fetchSessions();
+        loadSession(data.id);
+      };
+
+      const deleteSession = async (sessionId) => {
+        await fetch(`/api/sessions/${sessionId}/delete/`, {
+          method: "DELETE",
+          headers: { "X-CSRFToken": csrfToken },
+        });
+        if (currentSessionId === sessionId) {
+          currentSessionId = null;
+          chatWindow.innerHTML = "";
+          documentsContainer.innerHTML = "";
+        }
+        fetchSessions();
+      };
+
+      const deleteDocument = async (documentId) => {
+        await fetch(`/api/documents/${documentId}/delete/`, {
+          method: "DELETE",
+          headers: { "X-CSRFToken": csrfToken },
+        });
+        if (currentSessionId) {
+          loadSession(currentSessionId);
+        }
+      };
+
+      // Event Listeners
+      newChatBtn.addEventListener("click", createNewSession);
+      startChatBtn.addEventListener("click", createNewSession);
+
+      // Drag and drop
+      uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadArea.classList.add("drag-over");
+      });
+      
+      uploadArea.addEventListener("dragleave", () => {
+        uploadArea.classList.remove("drag-over");
+      });
+      
+      uploadArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove("drag-over");
+        if (e.dataTransfer.files.length && currentSessionId) {
+          handleFileUpload(e.dataTransfer.files[0]);
+        }
+      });
+      
+      uploadArea.addEventListener("click", () => fileInput.click());
+      
+      fileInput.addEventListener("change", () => {
+        if (fileInput.files.length && currentSessionId) {
+          handleFileUpload(fileInput.files[0]);
+          fileInput.value = "";
+        }
+      });
+
+      const handleFileUpload = async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("session_id", currentSessionId);
+        
+        const response = await fetch("/api/upload/", {
+          method: "POST",
+          headers: { "X-CSRFToken": csrfToken },
+          body: formData,
+        });
+        const data = await response.json();
+        if (data.status === "failed") {
+          addMessage("assistant", `Upload failed: ${data.error}`);
+        }
+        loadSession(currentSessionId);
+        fetchSessions();
+      };
+
+      askButton.addEventListener("click", async () => {
+        const question = questionInput.value.trim();
+        if (!question || !currentSessionId) return;
+        
+        addMessage("user", question);
+        questionInput.value = "";
+        questionInput.style.height = 'auto';
+        askButton.disabled = true;
+        
+        const response = await fetch("/api/ask/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({ question, session_id: currentSessionId }),
+        });
+        const data = await response.json();
+        addMessage("assistant", data.answer);
+        askButton.disabled = false;
+        fetchSessions();
+      });
+
+      questionInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          askButton.click();
+        }
+      });
+
+      fetchSessions();
+      
+      // Theme toggle
+      const themeToggle = document.getElementById('theme-toggle');
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      
+      themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+      });
+      
+      // Mobile menu toggle
+      const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+      const sidebar = document.querySelector('.sidebar');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      
+      const toggleSidebar = () => {
+        sidebar.classList.toggle('open');
+        sidebarOverlay.classList.toggle('active');
+      };
+      
+      mobileMenuBtn.addEventListener('click', toggleSidebar);
+      sidebarOverlay.addEventListener('click', toggleSidebar);
+      
+      // Close sidebar when selecting a session on mobile
+      const closeSidebarOnMobile = () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('open');
+          sidebarOverlay.classList.remove('active');
+        }
+      };
+    </script>
+  </body>
+</html>
