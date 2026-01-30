@@ -1,6 +1,16 @@
-# Document Q&A Assistant
+# Verba - Document Q&A Assistant
+
+🔗 **Live Demo**: [https://verba-6s5h.onrender.com](https://verba-6s5h.onrender.com)
 
 A Django full‑stack app that lets users upload documents (PDF, DOCX, TXT) and ask questions using a RAG pipeline. Documents are chunked, embedded with Gemini, stored in Chroma, and answers are generated via Groq Llama.
+
+## Features
+
+- 📄 Upload PDF, DOCX, and TXT files
+- 🔍 RAG-powered question answering
+- 💬 Session-based chat history
+- 🌙 Dark/Light mode toggle
+- 📱 Responsive design
 
 ## Setup
 
