@@ -15,9 +15,3 @@ services:
         value: "false"
       - key: DJANGO_ALLOWED_HOSTS
         value: ".onrender.com"
-      - key: DATA_DIR
-        value: "/app/data"
-    disk:
-      name: verba-data
-      mountPath: /app/data
-      sizeGB: 1
