@@ -209,12 +209,12 @@ def answer_question(question: str, document_ids: Optional[List[int]] = None, cha
     documents = []
     metadatas = []
 
-    if "matches" in results:
-        for match in results["matches"]:
-            metadata = match.get("metadata", {})
-            text = metadata.get("text", "")
-            documents.append(text)
-            metadatas.append(metadata)
+    matches = getattr(results, 'matches', None) or results.get('matches', []) if isinstance(results, dict) else getattr(results, 'matches', [])
+    for match in matches:
+        metadata = getattr(match, 'metadata', None) or (match.get('metadata', {}) if isinstance(match, dict) else {})
+        text = metadata.get('text', '') if isinstance(metadata, dict) else getattr(metadata, 'text', '')
+        documents.append(text)
+        metadatas.append(dict(metadata) if not isinstance(metadata, dict) else metadata)
 
     # Use the selected model or fall back to default
     selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL
