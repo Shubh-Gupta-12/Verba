@@ -6,7 +6,8 @@ import time
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
 from groq import Groq
 from pinecone import Pinecone
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -80,18 +81,21 @@ def _chunk_text(text: str) -> List[str]:
 
 
 def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    # Strip legacy "models/" prefix — newer Gemini API uses bare model name
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     model_name = settings.GEMINI_EMBEDDING_MODEL.removeprefix("models/")
+    dims = getattr(settings, "GEMINI_EMBEDDING_DIMENSIONS", 768)
     embeddings: List[List[float]] = []
     for text in texts:
         response = _retry(
-            genai.embed_content,
+            client.models.embed_content,
             model=model_name,
-            content=text,
-            task_type="retrieval_document",
+            contents=text,
+            config=genai_types.EmbedContentConfig(
+                task_type="RETRIEVAL_DOCUMENT",
+                output_dimensionality=dims,
+            ),
         )
-        embeddings.append(response["embedding"])
+        embeddings.append(list(response.embeddings[0].values))
     return embeddings
 
 
@@ -173,7 +177,6 @@ def _build_prompt(question: str, context_chunks: List[str], chat_history: Option
 def answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None) -> dict:
     logger.info(f"Answering question: {question[:100]}...")
     _ensure_api_keys()
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
     index = _get_pinecone_index()
     query_embedding = _embed_texts([question])[0]
