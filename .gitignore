@@ -18,7 +18,7 @@ staticfiles/
 # Environment
 .env
 
-# ChromaDB (local vector store)
+# Legacy local vector store (now using Pinecone cloud)
 chroma/
 
 # IDE

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
+import time
 from pathlib import Path
 from typing import Iterable, List, Optional
 
 import google.generativeai as genai
 from groq import Groq
-import chromadb
+from pinecone import Pinecone
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 import docx
@@ -16,7 +18,25 @@ from django.conf import settings
 from .models import Document, DocumentChunk
 
 
+logger = logging.getLogger(__name__)
+
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+MAX_RETRIES = 3
+RETRY_BACKOFF = 2  # seconds
+
+
+def _retry(func, *args, retries=MAX_RETRIES, **kwargs):
+    """Retry a function with exponential backoff."""
+    for attempt in range(retries):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            if attempt == retries - 1:
+                logger.error(f"Failed after {retries} attempts: {e}")
+                raise
+            wait = RETRY_BACKOFF * (2 ** attempt)
+            logger.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {wait}s...")
+            time.sleep(wait)
 
 
 def _ensure_api_keys() -> None:
@@ -24,11 +44,13 @@ def _ensure_api_keys() -> None:
         raise RuntimeError("GEMINI_API_KEY is not set")
     if not os.getenv("GROQ_API_KEY"):
         raise RuntimeError("GROQ_API_KEY is not set")
+    if not settings.PINECONE_API_KEY:
+        raise RuntimeError("PINECONE_API_KEY is not set")
 
 
-def _get_chroma_collection():
-    client = chromadb.PersistentClient(path=str(settings.CHROMA_PATH))
-    return client.get_or_create_collection("documents")
+def _get_pinecone_index():
+    pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+    return pc.Index(settings.PINECONE_INDEX_NAME)
 
 
 def _extract_text(file_path: Path) -> str:
@@ -53,6 +75,7 @@ def _chunk_text(text: str) -> List[str]:
         separators=["\n\n", "\n", " ", ""],
     )
     chunks = [chunk.strip() for chunk in splitter.split_text(text) if chunk.strip()]
+    logger.info(f"Split text into {len(chunks)} chunks")
     return chunks
 
 
@@ -60,7 +83,8 @@ def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
     embeddings: List[List[float]] = []
     for text in texts:
-        response = genai.embed_content(
+        response = _retry(
+            genai.embed_content,
             model=settings.GEMINI_EMBEDDING_MODEL,
             content=text,
             task_type="retrieval_document",
@@ -70,88 +94,125 @@ def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
 
 
 def process_document(document: Document) -> None:
+    logger.info(f"Processing document: {document.original_name} (ID: {document.id})")
     _ensure_api_keys()
     file_path = Path(document.file.path)
     text = _extract_text(file_path)
     chunks = _chunk_text(text)
 
-    collection = _get_chroma_collection()
+    index = _get_pinecone_index()
     embeddings = _embed_texts(chunks)
 
-    ids = [f"{document.id}-{index}" for index in range(len(chunks))]
-    metadatas = [
-        {
-            "document_id": document.id,
-            "document_name": document.original_name,
-            "chunk_index": index,
-        }
-        for index in range(len(chunks))
-    ]
+    vectors = []
+    for i, chunk in enumerate(chunks):
+        vectors.append({
+            "id": f"{document.id}-{i}",
+            "values": embeddings[i],
+            "metadata": {
+                "document_id": str(document.id),
+                "document_name": document.original_name,
+                "chunk_index": i,
+                "text": chunk
+            }
+        })
 
-    collection.upsert(ids=ids, documents=chunks, embeddings=embeddings, metadatas=metadatas)
+    # Upsert in batches of 100 to avoid Pinecone limits
+    batch_size = 100
+    for i in range(0, len(vectors), batch_size):
+        _retry(index.upsert, vectors=vectors[i:i + batch_size])
 
     DocumentChunk.objects.filter(document=document).delete()
     DocumentChunk.objects.bulk_create(
         [
-            DocumentChunk(document=document, chunk_index=index, content=chunk)
-            for index, chunk in enumerate(chunks)
+            DocumentChunk(document=document, chunk_index=idx, content=chunk)
+            for idx, chunk in enumerate(chunks)
         ]
     )
+    logger.info(f"Document processed successfully: {document.original_name}")
 
 
 def delete_document_chunks(document_id: int) -> None:
-    """Delete all chunks for a document from ChromaDB and the database."""
-    collection = _get_chroma_collection()
-    # Get all chunk IDs for this document
-    results = collection.get(where={"document_id": document_id})
-    if results and results["ids"]:
-        collection.delete(ids=results["ids"])
-    # Delete from database
+    """Delete all chunks for a document from Pinecone and the database."""
+    logger.info(f"Deleting chunks for document ID: {document_id}")
+    try:
+        index = _get_pinecone_index()
+        chunks = DocumentChunk.objects.filter(document_id=document_id)
+        ids_to_delete = [f"{document_id}-{chunk.chunk_index}" for chunk in chunks]
+
+        if ids_to_delete:
+            batch_size = 100
+            for i in range(0, len(ids_to_delete), batch_size):
+                _retry(index.delete, ids=ids_to_delete[i:i + batch_size])
+    except Exception as e:
+        logger.error(f"Error deleting from Pinecone: {e}")
+
     DocumentChunk.objects.filter(document_id=document_id).delete()
+    logger.info(f"Chunks deleted for document ID: {document_id}")
 
 
-def _build_prompt(question: str, context_chunks: List[str]) -> List[dict]:
+def _build_prompt(question: str, context_chunks: List[str], chat_history: Optional[List[dict]] = None) -> List[dict]:
     context_text = "\n\n".join(context_chunks)
     system_prompt = (
         "You are a helpful assistant. Answer strictly from the provided context. "
         "If the context does not contain the answer, say you do not have enough information."
     )
+    messages = [{"role": "system", "content": system_prompt}]
+
+    # Add conversation history for memory (Phase 3 item 14)
+    if chat_history:
+        for msg in chat_history[-6:]:  # Last 6 messages for context window
+            messages.append({"role": msg["role"], "content": msg["content"]})
+
     user_prompt = f"Context:\n{context_text}\n\nQuestion: {question}"
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
+    messages.append({"role": "user", "content": user_prompt})
+    return messages
 
 
-def answer_question(question: str, document_ids: Optional[List[int]] = None) -> dict:
+def answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None) -> dict:
+    logger.info(f"Answering question: {question[:100]}...")
     _ensure_api_keys()
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-    collection = _get_chroma_collection()
+    index = _get_pinecone_index()
     query_embedding = _embed_texts([question])[0]
 
-    where = None
+    filter_dict = None
     if document_ids:
-        where = {"document_id": {"$in": document_ids}}
+        str_ids = [str(did) for did in document_ids]
+        filter_dict = {"document_id": {"$in": str_ids}}
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=5,
-        where=where,
-        include=["documents", "metadatas", "distances"],
+    results = _retry(
+        index.query,
+        vector=query_embedding,
+        top_k=5,
+        filter=filter_dict,
+        include_metadata=True
     )
 
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
+    documents = []
+    metadatas = []
+
+    if "matches" in results:
+        for match in results["matches"]:
+            metadata = match.get("metadata", {})
+            text = metadata.get("text", "")
+            documents.append(text)
+            metadatas.append(metadata)
+
+    # Use the selected model or fall back to default
+    selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL
+    logger.info(f"Using model: {selected_model}")
 
     client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    response = client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        messages=_build_prompt(question, documents),
+    response = _retry(
+        client.chat.completions.create,
+        model=selected_model,
+        messages=_build_prompt(question, documents, chat_history),
         temperature=0.2,
     )
 
     answer = response.choices[0].message.content
+    logger.info(f"Answer generated successfully ({len(answer)} chars)")
 
     sources = []
     for doc_text, metadata in zip(documents, metadatas):
