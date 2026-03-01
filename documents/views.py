@@ -4,6 +4,7 @@ from typing import List
 
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
@@ -18,6 +19,7 @@ def index(request):
 	return render(request, "documents/index.html")
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def create_session(request):
 	session = ChatSession.objects.create(title="New Chat")
@@ -73,6 +75,7 @@ def get_session(request, session_id):
 	})
 
 
+@csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_session(request, session_id):
 	session = get_object_or_404(ChatSession, id=session_id)
@@ -80,6 +83,7 @@ def delete_session(request, session_id):
 	return JsonResponse({"status": "deleted"})
 
 
+@csrf_exempt
 @ratelimit(key='ip', rate='20/m', method='POST', block=True)
 @require_http_methods(["POST"])
 def upload_document(request):
@@ -135,6 +139,7 @@ def upload_document(request):
 	})
 
 
+@csrf_exempt
 @ratelimit(key='ip', rate='30/m', method='POST', block=True)
 @require_http_methods(["POST"])
 def ask_question(request):
@@ -221,6 +226,7 @@ def list_documents(request):
 	})
 
 
+@csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_document(request, document_id):
 	document = get_object_or_404(Document, id=document_id)
