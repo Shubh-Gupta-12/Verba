@@ -84,19 +84,31 @@ def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     model_name = settings.GEMINI_EMBEDDING_MODEL.removeprefix("models/")
     dims = getattr(settings, "GEMINI_EMBEDDING_DIMENSIONS", 768)
-    embeddings: List[List[float]] = []
-    for text in texts:
+    text_list = list(texts)
+
+    if not text_list:
+        return []
+
+    # Batch embed — up to 100 texts per API call (Gemini limit)
+    all_embeddings: List[List[float]] = []
+    batch_size = 100
+    for i in range(0, len(text_list), batch_size):
+        batch = text_list[i:i + batch_size]
+        logger.info(f"Embedding batch {i // batch_size + 1} ({len(batch)} texts)")
         response = _retry(
             client.models.embed_content,
             model=model_name,
-            contents=text,
+            contents=batch,
             config=genai_types.EmbedContentConfig(
                 task_type="RETRIEVAL_DOCUMENT",
                 output_dimensionality=dims,
             ),
         )
-        embeddings.append(list(response.embeddings[0].values))
-    return embeddings
+        for emb in response.embeddings:
+            all_embeddings.append(list(emb.values))
+
+    logger.info(f"Embedded {len(all_embeddings)} texts total")
+    return all_embeddings
 
 
 def process_document(document: Document) -> None:
