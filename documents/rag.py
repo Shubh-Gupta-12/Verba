@@ -81,11 +81,13 @@ def _chunk_text(text: str) -> List[str]:
 
 def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    # Strip legacy "models/" prefix — newer Gemini API uses bare model name
+    model_name = settings.GEMINI_EMBEDDING_MODEL.removeprefix("models/")
     embeddings: List[List[float]] = []
     for text in texts:
         response = _retry(
             genai.embed_content,
-            model=settings.GEMINI_EMBEDDING_MODEL,
+            model=model_name,
             content=text,
             task_type="retrieval_document",
         )
