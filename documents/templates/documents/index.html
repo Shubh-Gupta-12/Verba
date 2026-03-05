@@ -1036,27 +1036,64 @@
       };
 
       const createNewSession = async () => {
+        newChatBtn.disabled = true;
         const res = await fetch("/api/sessions/create/", {
           method: "POST",
           headers: { "X-CSRFToken": csrfToken },
         });
         const data = await res.json();
         currentSessionId = data.id;
-        await fetchSessions();
-        loadSession(data.id);
+        // Insert directly into DOM instead of refetching all sessions
+        const item = document.createElement("div");
+        item.className = "session-item active";
+        item.innerHTML = `
+          <span class="session-title">${data.title}</span>
+          <button class="delete-btn" data-id="${data.id}">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        `;
+        item.addEventListener("click", (e) => {
+          if (!e.target.closest(".delete-btn")) { loadSession(data.id); closeSidebarOnMobile(); }
+        });
+        item.querySelector(".delete-btn").addEventListener("click", (e) => {
+          e.stopPropagation(); deleteSession(data.id);
+        });
+        // Remove active from others and prepend new item
+        document.querySelectorAll(".session-item").forEach(i => i.classList.remove("active"));
+        sessionList.prepend(item);
+        // Clear chat & docs for new session
+        chatWindow.innerHTML = "";
+        documentsContainer.innerHTML = '<div class="empty-state"><p>No documents uploaded</p></div>';
+        chatTitle.textContent = "New Chat";
+        showMainContent(true);
+        newChatBtn.disabled = false;
       };
 
       const deleteSession = async (sessionId) => {
-        await fetch(`/api/sessions/${sessionId}/delete/`, {
-          method: "DELETE",
-          headers: { "X-CSRFToken": csrfToken },
-        });
+        // Instantly remove from DOM
+        const delBtn = document.querySelector(`.delete-btn[data-id="${sessionId}"]`);
+        if (delBtn) delBtn.parentElement.remove();
+        
         if (currentSessionId === sessionId) {
           currentSessionId = null;
           chatWindow.innerHTML = "";
           documentsContainer.innerHTML = "";
+          // Load next available session or show empty state
+          const nextItem = sessionList.querySelector('.session-item');
+          if (nextItem) {
+            const nextId = nextItem.querySelector('.delete-btn')?.dataset?.id;
+            if (nextId) loadSession(parseInt(nextId));
+          } else {
+            showMainContent(false);
+          }
         }
-        fetchSessions();
+        // Fire and forget — already removed from DOM
+        fetch(`/api/sessions/${sessionId}/delete/`, {
+          method: "DELETE",
+          headers: { "X-CSRFToken": csrfToken },
+        });
       };
 
       const deleteDocument = async (documentId) => {
@@ -1101,6 +1138,19 @@
       });
 
       const handleFileUpload = async (file) => {
+        // Show optimistic processing state immediately
+        const tempDoc = document.createElement("div");
+        tempDoc.className = "document-item";
+        tempDoc.id = "uploading-doc";
+        tempDoc.innerHTML = `
+          <div class="doc-info">
+            <div class="doc-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+            <span class="doc-name">${file.name}</span>
+          </div>
+          <span class="status-badge processing">Processing</span>
+        `;
+        documentsContainer.appendChild(tempDoc);
+        
         const formData = new FormData();
         formData.append("file", file);
         formData.append("session_id", currentSessionId);
@@ -1111,11 +1161,21 @@
           body: formData,
         });
         const data = await response.json();
+        
+        // Remove temp doc and reload session docs
+        const tempEl = document.getElementById("uploading-doc");
+        if (tempEl) tempEl.remove();
+        
         if (data.status === "failed") {
           addMessage("assistant", `Upload failed: ${data.error}`);
+        } else {
+          // Update session title in sidebar if changed
+          const activeItem = document.querySelector(`.session-item.active .session-title`);
+          if (activeItem && activeItem.textContent === 'New Chat') {
+            activeItem.textContent = file.name.substring(0, 50);
+          }
         }
         loadSession(currentSessionId);
-        fetchSessions();
       };
 
       askButton.addEventListener("click", async () => {
@@ -1138,7 +1198,6 @@
         const data = await response.json();
         addMessage("assistant", data.answer);
         askButton.disabled = false;
-        fetchSessions();
       });
 
       questionInput.addEventListener("keydown", (e) => {

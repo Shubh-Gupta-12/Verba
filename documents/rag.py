@@ -25,6 +25,11 @@ SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2  # seconds
 
+# Module-level cached clients (lazy-initialized)
+_pinecone_index = None
+_gemini_client = None
+_groq_client = None
+
 
 def _retry(func, *args, retries=MAX_RETRIES, **kwargs):
     """Retry a function with exponential backoff."""
@@ -50,8 +55,25 @@ def _ensure_api_keys() -> None:
 
 
 def _get_pinecone_index():
-    pc = Pinecone(api_key=settings.PINECONE_API_KEY)
-    return pc.Index(settings.PINECONE_INDEX_NAME)
+    global _pinecone_index
+    if _pinecone_index is None:
+        pc = Pinecone(api_key=settings.PINECONE_API_KEY)
+        _pinecone_index = pc.Index(settings.PINECONE_INDEX_NAME)
+    return _pinecone_index
+
+
+def _get_gemini_client():
+    global _gemini_client
+    if _gemini_client is None:
+        _gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return _gemini_client
+
+
+def _get_groq_client():
+    global _groq_client
+    if _groq_client is None:
+        _groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    return _groq_client
 
 
 def _extract_text(file_path: Path) -> str:
@@ -81,7 +103,7 @@ def _chunk_text(text: str) -> List[str]:
 
 
 def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    client = _get_gemini_client()
     model_name = settings.GEMINI_EMBEDDING_MODEL.removeprefix("models/")
     dims = getattr(settings, "GEMINI_EMBEDDING_DIMENSIONS", 768)
     text_list = list(texts)
@@ -220,7 +242,7 @@ def answer_question(question: str, document_ids: Optional[List[int]] = None, cha
     selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL
     logger.info(f"Using model: {selected_model}")
 
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    client = _get_groq_client()
     response = _retry(
         client.chat.completions.create,
         model=selected_model,

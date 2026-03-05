@@ -32,7 +32,7 @@ def create_session(request):
 
 @require_http_methods(["GET"])
 def list_sessions(request):
-	sessions = ChatSession.objects.all()
+	sessions = ChatSession.objects.only('id', 'title', 'created_at', 'updated_at').order_by('-updated_at')[:30]
 	return JsonResponse({
 		"sessions": [
 			{
