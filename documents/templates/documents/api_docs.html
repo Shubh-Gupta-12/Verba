@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verba API Documentation</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --get: #10b981;
+            --post: #6366f1;
+            --delete: #ef4444;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 48px 24px;
+        }
+
+        header {
+            margin-bottom: 48px;
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-top: 8px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 16px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .endpoint {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .endpoint:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            cursor: pointer;
+        }
+
+        .method {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: 'JetBrains Mono', monospace;
+            color: #fff;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .method.get {
+            background: var(--get);
+        }
+
+        .method.post {
+            background: var(--post);
+        }
+
+        .method.delete {
+            background: var(--delete);
+        }
+
+        .path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .endpoint-desc {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+
+        .endpoint-body {
+            display: none;
+            padding: 0 20px 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .endpoint.open .endpoint-body {
+            display: block;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+
+        .param-table th {
+            text-align: left;
+            padding: 8px 12px;
+            background: var(--bg-main);
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+        }
+
+        .param-table td {
+            padding: 8px 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .param-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .param-type {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            background: var(--bg-main);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: var(--radius-md);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge.required {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .badge.optional {
+            background: rgba(99, 102, 241, 0.1);
+            color: #6366f1;
+        }
+
+        .note {
+            background: rgba(99, 102, 241, 0.05);
+            border-left: 3px solid var(--primary);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .endpoint-desc {
+                display: none;
+            }
+
+            .container {
+                padding: 24px 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="{% url 'index' %}" class="back-link">← Back to App</a>
+        <header>
+            <h1>Verba API Documentation</h1>
+            <p>RESTful API endpoints for the Document Q&A Assistant. All endpoints require authentication.</p>
+        </header>
+
+        <div class="note" style="margin-bottom:32px;">
+            <strong>Authentication:</strong> All API endpoints require a valid login session. Include the CSRF token in
+            the <code>X-CSRFToken</code> header for POST/DELETE requests.
+        </div>
+
+        <div class="section">
+            <h2>Chat Sessions</h2>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/sessions/</span>
+                    <span class="endpoint-desc">List all chat sessions</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Returns up to 30 most recent sessions ordered by last activity.</p>
+                    <pre>{
+  "sessions": [
+    {
+      "id": 1,
+      "title": "My Chat",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/sessions/create/</span>
+                    <span class="endpoint-desc">Create a new chat session</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Creates a new chat session for the authenticated user.</p>
+                    <pre>// Response
+{
+  "id": 5,
+  "title": "New Chat",
+  "created_at": "2026-01-01T00:00:00Z"
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/sessions/{id}/</span>
+                    <span class="endpoint-desc">Get session details with messages & docs</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Returns full session including all messages and documents.</p>
+                    <table class="param-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">id</td>
+                            <td class="param-type">integer</td>
+                            <td>Session ID <span class="badge required">required</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/api/sessions/{id}/delete/</span>
+                    <span class="endpoint-desc">Delete a chat session</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Permanently deletes a session and all its messages, documents, and Pinecone vectors.</p>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/sessions/{id}/export/</span>
+                    <span class="endpoint-desc">Export chat as Markdown</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Downloads the full conversation as a Markdown file.</p>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/search/?q={query}</span>
+                    <span class="endpoint-desc">Search across sessions</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Full-text search across session titles and message content.</p>
+                    <table class="param-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">q</td>
+                            <td class="param-type">string</td>
+                            <td>Search query <span class="badge required">required</span></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Documents</h2>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/upload/</span>
+                    <span class="endpoint-desc">Upload a document</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Upload a PDF, DOCX, or TXT file (max 10MB). The document is automatically chunked, embedded, and
+                        indexed in Pinecone.</p>
+                    <table class="param-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">file</td>
+                            <td class="param-type">file</td>
+                            <td>Document file <span class="badge required">required</span></td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">session_id</td>
+                            <td class="param-type">integer</td>
+                            <td>Session to attach to <span class="badge optional">optional</span></td>
+                        </tr>
+                    </table>
+                    <p style="margin-top:8px;font-size:13px;color:var(--text-secondary)">Content-Type:
+                        <code>multipart/form-data</code></p>
+                    <pre>{
+  "id": 3,
+  "name": "report.pdf",
+  "status": "ready",
+  "error": ""
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/documents/?session_id={id}</span>
+                    <span class="endpoint-desc">List documents</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>List all documents, optionally filtered by session.</p>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/api/documents/{id}/delete/</span>
+                    <span class="endpoint-desc">Delete a document</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Deletes the document, its file, and all associated Pinecone vectors.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Questions & Answers</h2>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/ask/</span>
+                    <span class="endpoint-desc">Ask a question (standard)</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Submit a question and receive a complete answer with source citations.</p>
+                    <table class="param-table">
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Type</th>
+                            <th>Description</th>
+                        </tr>
+                        <tr>
+                            <td class="param-name">question</td>
+                            <td class="param-type">string</td>
+                            <td>Your question (max 2000 chars) <span class="badge required">required</span></td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">session_id</td>
+                            <td class="param-type">integer</td>
+                            <td>Session context <span class="badge optional">optional</span></td>
+                        </tr>
+                        <tr>
+                            <td class="param-name">model</td>
+                            <td class="param-type">string</td>
+                            <td>LLM model ID <span class="badge optional">optional</span></td>
+                        </tr>
+                    </table>
+                    <pre>// Request body (JSON)
+{
+  "question": "What is the revenue?",
+  "session_id": 1,
+  "model": "llama-3.1-8b-instant"
+}
+
+// Response
+{
+  "answer": "Based on the document...",
+  "sources": [
+    {
+      "document_id": "3",
+      "document_name": "report.pdf",
+      "chunk_index": 2,
+      "content": "..."
+    }
+  ]
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/ask/stream/</span>
+                    <span class="endpoint-desc">Ask a question (streaming SSE)</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Streaming version — tokens arrive via Server-Sent Events as the LLM generates them.</p>
+                    <p style="font-size:13px;color:var(--text-secondary);margin-top:8px;">Response:
+                        <code>text/event-stream</code></p>
+                    <pre>// Each SSE event:
+data: {"type": "token", "content": "Based"}
+data: {"type": "token", "content": " on"}
+data: {"type": "token", "content": " the"}
+...
+data: {"type": "done", "answer": "Full answer...", "sources": [...]}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Configuration</h2>
+
+            <div class="endpoint">
+                <div class="endpoint-header" onclick="this.parentElement.classList.toggle('open')">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/models/</span>
+                    <span class="endpoint-desc">List available LLM models</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Returns all available models and the current default.</p>
+                    <pre>{
+  "models": [
+    {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B", "provider": "groq", "speed": "fast"},
+    {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B", "provider": "groq", "speed": "medium"}
+  ],
+  "default": "llama-3.1-8b-instant"
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Rate Limits</h2>
+            <table class="param-table">
+                <tr>
+                    <th>Endpoint</th>
+                    <th>Limit</th>
+                </tr>
+                <tr>
+                    <td><code>/api/upload/</code></td>
+                    <td>20 requests/minute per IP</td>
+                </tr>
+                <tr>
+                    <td><code>/api/ask/</code></td>
+                    <td>30 requests/minute per IP</td>
+                </tr>
+                <tr>
+                    <td><code>/api/ask/stream/</code></td>
+                    <td>30 requests/minute per IP</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+
+</html>

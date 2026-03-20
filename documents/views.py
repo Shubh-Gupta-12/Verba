@@ -22,6 +22,11 @@ def index(request):
 	return render(request, "documents/index.html")
 
 
+@login_required
+def api_docs(request):
+	return render(request, "documents/api_docs.html")
+
+
 @csrf_exempt
 @login_required
 @require_http_methods(["POST"])

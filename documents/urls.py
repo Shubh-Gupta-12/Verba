@@ -10,6 +10,7 @@ urlpatterns = [
     path("logout/", auth_views.logout_view, name="logout"),
     # App routes
     path("", views.index, name="index"),
+    path("api/docs/", views.api_docs, name="api_docs"),
     path("api/sessions/", views.list_sessions, name="list_sessions"),
     path("api/sessions/create/", views.create_session, name="create_session"),
     path("api/sessions/<int:session_id>/", views.get_session, name="get_session"),
