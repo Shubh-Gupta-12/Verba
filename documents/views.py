@@ -2,6 +2,8 @@ import json
 import logging
 from typing import List
 
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
@@ -15,14 +17,16 @@ from .rag import answer_question, process_document, SUPPORTED_EXTENSIONS
 logger = logging.getLogger(__name__)
 
 
+@login_required
 def index(request):
 	return render(request, "documents/index.html")
 
 
 @csrf_exempt
+@login_required
 @require_http_methods(["POST"])
 def create_session(request):
-	session = ChatSession.objects.create(title="New Chat")
+	session = ChatSession.objects.create(title="New Chat", user=request.user)
 	return JsonResponse({
 		"id": session.id,
 		"title": session.title,
@@ -30,9 +34,10 @@ def create_session(request):
 	})
 
 
+@login_required
 @require_http_methods(["GET"])
 def list_sessions(request):
-	sessions = ChatSession.objects.only('id', 'title', 'created_at', 'updated_at').order_by('-updated_at')[:30]
+	sessions = ChatSession.objects.filter(user=request.user).only('id', 'title', 'created_at', 'updated_at').order_by('-updated_at')[:30]
 	return JsonResponse({
 		"sessions": [
 			{
@@ -46,9 +51,10 @@ def list_sessions(request):
 	})
 
 
+@login_required
 @require_http_methods(["GET"])
 def get_session(request, session_id):
-	session = get_object_or_404(ChatSession, id=session_id)
+	session = get_object_or_404(ChatSession, id=session_id, user=request.user)
 	messages = session.messages.all()
 	documents = session.documents.all()
 	return JsonResponse({
@@ -76,14 +82,16 @@ def get_session(request, session_id):
 
 
 @csrf_exempt
+@login_required
 @require_http_methods(["DELETE"])
 def delete_session(request, session_id):
-	session = get_object_or_404(ChatSession, id=session_id)
+	session = get_object_or_404(ChatSession, id=session_id, user=request.user)
 	session.delete()
 	return JsonResponse({"status": "deleted"})
 
 
 @csrf_exempt
+@login_required
 @ratelimit(key='ip', rate='20/m', method='POST', block=True)
 @require_http_methods(["POST"])
 def upload_document(request):
@@ -140,6 +148,7 @@ def upload_document(request):
 
 
 @csrf_exempt
+@login_required
 @ratelimit(key='ip', rate='30/m', method='POST', block=True)
 @require_http_methods(["POST"])
 def ask_question(request):
@@ -205,6 +214,7 @@ def ask_question(request):
 	return JsonResponse(response)
 
 
+@login_required
 @require_http_methods(["GET"])
 def list_documents(request):
 	session_id = request.GET.get("session_id")
@@ -227,6 +237,7 @@ def list_documents(request):
 
 
 @csrf_exempt
+@login_required
 @require_http_methods(["DELETE"])
 def delete_document(request, document_id):
 	document = get_object_or_404(Document, id=document_id)
@@ -240,6 +251,7 @@ def delete_document(request, document_id):
 	return JsonResponse({"status": "deleted"})
 
 
+@login_required
 @require_http_methods(["GET"])
 def list_models(request):
 	"""Return a list of available LLM models."""
@@ -250,6 +262,7 @@ def list_models(request):
 	return JsonResponse({"models": models, "default": settings.GROQ_MODEL})
 
 
+@login_required
 @require_http_methods(["GET"])
 def search_sessions(request):
 	"""Search across all sessions by title or message content."""
@@ -276,6 +289,7 @@ def search_sessions(request):
 	})
 
 
+@login_required
 @require_http_methods(["GET"])
 def export_chat(request, session_id):
 	"""Export a chat session as Markdown."""

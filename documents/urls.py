@@ -1,8 +1,14 @@
 from django.urls import path
 
 from . import views
+from . import auth_views
 
 urlpatterns = [
+    # Auth routes
+    path("login/", auth_views.login_view, name="login"),
+    path("register/", auth_views.register_view, name="register"),
+    path("logout/", auth_views.logout_view, name="logout"),
+    # App routes
     path("", views.index, name="index"),
     path("api/sessions/", views.list_sessions, name="list_sessions"),
     path("api/sessions/create/", views.create_session, name="create_session"),

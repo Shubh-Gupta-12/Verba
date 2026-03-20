@@ -225,3 +225,8 @@ CORS_ALLOWED_ORIGINS = [
 # Rate limiting
 RATELIMIT_USE_CACHE = 'default'
 RATELIMIT_FAIL_OPEN = True  # Don't block requests if rate limiter fails
+
+# Authentication
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'
