@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/sessions/<int:session_id>/export/", views.export_chat, name="export_chat"),
     path("api/upload/", views.upload_document, name="upload_document"),
     path("api/ask/", views.ask_question, name="ask_question"),
+    path("api/ask/stream/", views.ask_question_stream, name="ask_question_stream"),
     path("api/documents/", views.list_documents, name="list_documents"),
     path("api/documents/<int:document_id>/delete/", views.delete_document, name="delete_document"),
     path("api/models/", views.list_models, name="list_models"),

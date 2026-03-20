@@ -1301,16 +1301,64 @@
       questionInput.style.height = 'auto';
       askButton.disabled = true;
 
-      const response = await fetch("/api/ask/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": csrfToken,
-        },
-        body: JSON.stringify({ question, session_id: currentSessionId }),
-      });
-      const data = await response.json();
-      addMessage("assistant", data.answer);
+      // Create an empty assistant message bubble to fill with streamed tokens
+      const msgDiv = document.createElement("div");
+      msgDiv.className = "message assistant";
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "message-content";
+      contentDiv.textContent = "";
+      msgDiv.appendChild(contentDiv);
+      chatWindow.appendChild(msgDiv);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+
+      try {
+        const response = await fetch("/api/ask/stream/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({ question, session_id: currentSessionId }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop(); // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const event = JSON.parse(line.slice(6));
+                if (event.type === "token") {
+                  contentDiv.textContent += event.content;
+                  chatWindow.scrollTop = chatWindow.scrollHeight;
+                }
+              } catch (e) { /* ignore parse errors */ }
+            }
+          }
+        }
+      } catch (err) {
+        // Fallback to non-streaming
+        const response = await fetch("/api/ask/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrfToken,
+          },
+          body: JSON.stringify({ question, session_id: currentSessionId }),
+        });
+        const data = await response.json();
+        contentDiv.textContent = data.answer;
+      }
+
       askButton.disabled = false;
     });
 

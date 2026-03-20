@@ -265,3 +265,64 @@ def answer_question(question: str, document_ids: Optional[List[int]] = None, cha
         )
 
     return {"answer": answer, "sources": sources}
+
+
+def stream_answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None):
+    """Generator that yields answer tokens as they arrive from Groq streaming API."""
+    logger.info(f"Streaming answer for: {question[:100]}...")
+    _ensure_api_keys()
+
+    index = _get_pinecone_index()
+    query_embedding = _embed_texts([question])[0]
+
+    filter_dict = None
+    if document_ids:
+        str_ids = [str(did) for did in document_ids]
+        filter_dict = {"document_id": {"$in": str_ids}}
+
+    results = _retry(
+        index.query,
+        vector=query_embedding,
+        top_k=5,
+        filter=filter_dict,
+        include_metadata=True
+    )
+
+    documents = []
+    metadatas = []
+    matches = getattr(results, 'matches', None) or results.get('matches', []) if isinstance(results, dict) else getattr(results, 'matches', [])
+    for match in matches:
+        metadata = getattr(match, 'metadata', None) or (match.get('metadata', {}) if isinstance(match, dict) else {})
+        text = metadata.get('text', '') if isinstance(metadata, dict) else getattr(metadata, 'text', '')
+        documents.append(text)
+        metadatas.append(dict(metadata) if not isinstance(metadata, dict) else metadata)
+
+    selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL
+    logger.info(f"Streaming with model: {selected_model}")
+
+    client = _get_groq_client()
+    stream = client.chat.completions.create(
+        model=selected_model,
+        messages=_build_prompt(question, documents, chat_history),
+        temperature=0.2,
+        stream=True,
+    )
+
+    full_answer = []
+    for chunk in stream:
+        delta = chunk.choices[0].delta
+        if delta and delta.content:
+            full_answer.append(delta.content)
+            yield {"type": "token", "content": delta.content}
+
+    # Build sources
+    sources = []
+    for doc_text, metadata in zip(documents, metadatas):
+        sources.append({
+            "document_id": metadata.get("document_id"),
+            "document_name": metadata.get("document_name"),
+            "chunk_index": metadata.get("chunk_index"),
+            "content": doc_text,
+        })
+
+    yield {"type": "done", "answer": "".join(full_answer), "sources": sources}

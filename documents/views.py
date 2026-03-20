@@ -4,14 +4,14 @@ from typing import List
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpResponse
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
 from .models import Document, ChatMessage, ChatSession
-from .rag import answer_question, process_document, SUPPORTED_EXTENSIONS
+from .rag import answer_question, stream_answer_question, process_document, SUPPORTED_EXTENSIONS
 
 
 logger = logging.getLogger(__name__)
@@ -213,6 +213,74 @@ def ask_question(request):
 
 	return JsonResponse(response)
 
+
+@csrf_exempt
+@login_required
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)
+@require_http_methods(["POST"])
+def ask_question_stream(request):
+	"""SSE streaming endpoint — tokens arrive in real-time."""
+	try:
+		payload = json.loads(request.body or "{}")
+	except json.JSONDecodeError:
+		return HttpResponseBadRequest("Invalid JSON")
+
+	question = payload.get("question", "").strip()
+	if not question:
+		return HttpResponseBadRequest("Question is required")
+
+	if len(question) > 2000:
+		return JsonResponse({"error": "Question too long. Maximum 2000 characters."}, status=400)
+
+	session_id = payload.get("session_id")
+	session = None
+	if session_id:
+		session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+
+	# Save user message
+	ChatMessage.objects.create(
+		session=session,
+		role=ChatMessage.ROLE_USER,
+		content=question
+	)
+
+	# Get document IDs for this session
+	document_ids: List[int] = []
+	if session:
+		document_ids = list(session.documents.filter(status=Document.STATUS_READY).values_list("id", flat=True))
+
+	# Build conversation history
+	chat_history = None
+	if session:
+		recent_messages = session.messages.order_by('-created_at')[:6]
+		chat_history = [
+			{"role": msg.role, "content": msg.content}
+			for msg in reversed(recent_messages)
+		]
+
+	selected_model = payload.get("model")
+
+	def event_stream():
+		for event in stream_answer_question(question, document_ids=document_ids, chat_history=chat_history, model=selected_model):
+			yield f"data: {json.dumps(event)}\n\n"
+
+			# When done, save the assistant message
+			if event["type"] == "done":
+				ChatMessage.objects.create(
+					session=session,
+					role=ChatMessage.ROLE_ASSISTANT,
+					content=event["answer"]
+				)
+				if session and session.title == "New Chat":
+					session.title = question[:50]
+					session.save(update_fields=["title"])
+				if session:
+					session.save()
+
+	response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+	response["Cache-Control"] = "no-cache"
+	response["X-Accel-Buffering"] = "no"
+	return response
 
 @login_required
 @require_http_methods(["GET"])
