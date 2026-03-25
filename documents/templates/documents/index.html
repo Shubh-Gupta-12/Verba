@@ -852,11 +852,110 @@
         width: 40px;
       }
     }
+
+    /* Preview Modal */
+    .preview-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+    .preview-overlay.active { display: flex; }
+    .preview-modal {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 700px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      animation: fadeIn 0.3s ease;
+    }
+    .preview-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .preview-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .preview-meta {
+      font-size: 12px;
+      color: var(--text-light);
+    }
+    .preview-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 8px;
+    }
+    .preview-close:hover {
+      color: var(--error);
+      background: rgba(239, 68, 68, 0.1);
+    }
+    .preview-body {
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      font-family: 'Inter', sans-serif;
+    }
+    .doc-preview-btn {
+      background: none;
+      border: none;
+      color: var(--text-light);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .document-item:hover .doc-preview-btn { opacity: 1; }
+    .doc-preview-btn:hover {
+      color: var(--primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
   </style>
 </head>
 
 <body>
   {% csrf_token %}
+  <!-- Preview Modal -->
+  <div class="preview-overlay" id="preview-overlay">
+    <div class="preview-modal">
+      <div class="preview-header">
+        <div>
+          <h3 id="preview-title">Document</h3>
+          <span class="preview-meta" id="preview-meta"></span>
+        </div>
+        <button class="preview-close" id="preview-close">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div class="preview-body" id="preview-body">Loading...</div>
+    </div>
+  </div>
 
   <!-- Sidebar Overlay -->
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
@@ -1087,6 +1186,12 @@
             </div>
             <div class="doc-actions">
               <span class="status-badge ${doc.status}">${doc.status}</span>
+              <button class="doc-preview-btn" data-id="${doc.id}" title="Preview document">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
               <button class="doc-delete-btn" data-id="${doc.id}" title="Remove document">
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1098,8 +1203,39 @@
           e.stopPropagation();
           deleteDocument(doc.id);
         });
+        const previewBtn = wrapper.querySelector(".doc-preview-btn");
+        if (previewBtn) {
+          previewBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            previewDocument(doc.id);
+          });
+        }
         documentsContainer.appendChild(wrapper);
       });
+    };
+
+    // Preview modal logic
+    const previewOverlay = document.getElementById("preview-overlay");
+    const previewTitle = document.getElementById("preview-title");
+    const previewMeta = document.getElementById("preview-meta");
+    const previewBody = document.getElementById("preview-body");
+    document.getElementById("preview-close").addEventListener("click", () => {
+      previewOverlay.classList.remove("active");
+    });
+    previewOverlay.addEventListener("click", (e) => {
+      if (e.target === previewOverlay) previewOverlay.classList.remove("active");
+    });
+
+    const previewDocument = async (docId) => {
+      previewOverlay.classList.add("active");
+      previewTitle.textContent = "Loading...";
+      previewMeta.textContent = "";
+      previewBody.textContent = "Fetching preview...";
+      const res = await fetch(`/api/documents/${docId}/preview/`);
+      const data = await res.json();
+      previewTitle.textContent = data.name;
+      previewMeta.textContent = `${data.total_chunks} chunks · ${data.status}`;
+      previewBody.textContent = data.preview || "No preview available.";
     };
 
     const renderMessages = (messages) => {

@@ -21,6 +21,7 @@ urlpatterns = [
     path("api/ask/stream/", views.ask_question_stream, name="ask_question_stream"),
     path("api/documents/", views.list_documents, name="list_documents"),
     path("api/documents/<int:document_id>/delete/", views.delete_document, name="delete_document"),
+    path("api/documents/<int:document_id>/preview/", views.preview_document, name="preview_document"),
     path("api/models/", views.list_models, name="list_models"),
     path("api/search/", views.search_sessions, name="search_sessions"),
 ]

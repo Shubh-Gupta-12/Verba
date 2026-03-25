@@ -309,6 +309,24 @@ def list_documents(request):
 	})
 
 
+@login_required
+@require_http_methods(["GET"])
+def preview_document(request, document_id):
+	"""Return first few chunks of a document for preview."""
+	document = get_object_or_404(Document, id=document_id)
+	from .models import DocumentChunk
+	chunks = DocumentChunk.objects.filter(document=document).order_by("chunk_index")[:3]
+	preview_text = "\n\n".join(chunk.content for chunk in chunks)
+	return JsonResponse({
+		"id": document.id,
+		"name": document.original_name,
+		"status": document.status,
+		"preview": preview_text[:3000],
+		"total_chunks": document.chunks.count(),
+	})
+
+
+
 @csrf_exempt
 @login_required
 @require_http_methods(["DELETE"])
