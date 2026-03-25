@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
+    'storages',
     'documents',
 ]
 
@@ -144,6 +145,29 @@ DATA_DIR = Path(os.getenv("DATA_DIR", BASE_DIR))
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = DATA_DIR / 'media'
+
+# Cloud file storage (Supabase S3-compatible storage)
+# Set SUPABASE_STORAGE_URL in env to enable cloud storage
+SUPABASE_STORAGE_URL = os.getenv('SUPABASE_STORAGE_URL', '')  # e.g. https://<project>.supabase.co/storage/v1/s3
+if SUPABASE_STORAGE_URL:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+            'OPTIONS': {
+                'endpoint_url': SUPABASE_STORAGE_URL,
+                'access_key': os.getenv('SUPABASE_STORAGE_KEY', ''),
+                'secret_key': os.getenv('SUPABASE_STORAGE_SECRET', ''),
+                'bucket_name': os.getenv('SUPABASE_STORAGE_BUCKET', 'verba-uploads'),
+                'file_overwrite': False,
+                'default_acl': None,
+                'querystring_auth': True,
+                'signature_version': 's3v4',
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
 
 # Database - use external PostgreSQL (e.g., Supabase)
 import dj_database_url
