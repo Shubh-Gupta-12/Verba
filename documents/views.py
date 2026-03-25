@@ -163,6 +163,12 @@ def ask_question(request):
 	except json.JSONDecodeError:
 		return HttpResponseBadRequest("Invalid JSON")
 
+	try:
+		from .rag import _ensure_api_keys
+		_ensure_api_keys()
+	except Exception as e:
+		return JsonResponse({"error": f"{str(e)}. Please add the required keys to your Render environment variables."}, status=400)
+
 	question = payload.get("question", "").strip()
 	if not question:
 		return HttpResponseBadRequest("Question is required")
@@ -230,6 +236,12 @@ def ask_question_stream(request):
 		payload = json.loads(request.body or "{}")
 	except json.JSONDecodeError:
 		return HttpResponseBadRequest("Invalid JSON")
+
+	try:
+		from .rag import _ensure_api_keys
+		_ensure_api_keys()
+	except Exception as e:
+		return JsonResponse({"error": f"{str(e)}. Please add the required keys to your Render environment variables."}, status=400)
 
 	question = payload.get("question", "").strip()
 	if not question:

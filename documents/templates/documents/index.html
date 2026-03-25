@@ -4,8 +4,9 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Document Q&A Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:;base64,=">
+  <title>Verba</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -1491,6 +1492,11 @@
           body: JSON.stringify({ question, session_id: currentSessionId }),
         });
 
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({error: "Server Error"}));
+          throw new Error(errData.error || "Server Error");
+        }
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
@@ -1516,17 +1522,7 @@
           }
         }
       } catch (err) {
-        // Fallback to non-streaming
-        const response = await fetch("/api/ask/", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": csrfToken,
-          },
-          body: JSON.stringify({ question, session_id: currentSessionId }),
-        });
-        const data = await response.json();
-        contentDiv.textContent = data.answer;
+        contentDiv.innerHTML = `<span style="color: #ef4444;">${err.message}</span>`;
       }
 
       askButton.disabled = false;
