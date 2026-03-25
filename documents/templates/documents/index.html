@@ -1364,6 +1364,10 @@
       chatTitle.textContent = "New Chat";
       showMainContent(true);
       newChatBtn.disabled = false;
+      // Disable chat until documents are uploaded
+      questionInput.disabled = true;
+      askButton.disabled = true;
+      questionInput.placeholder = "Upload a document first to start chatting...";
     };
 
     const deleteSession = async (sessionId) => {
