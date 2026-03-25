@@ -1,0 +1,266 @@
+{% load i18n %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Verba - {% trans 'Analytics Dashboard' %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-card: rgba(30, 41, 59, 0.7);
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-light: #94a3b8;
+      --border: rgba(255, 255, 255, 0.1);
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1, #a855f7);
+      --radius-lg: 16px;
+      --radius-md: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .back-btn {
+      color: var(--text-secondary);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .back-btn:hover { color: var(--text-primary); }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-title {
+      color: var(--text-light);
+      font-size: 14px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      backdrop-filter: blur(12px);
+    }
+
+    .panel h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: var(--text-primary);
+    }
+
+    .user-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .user-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .user-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .user-name {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .user-sessions {
+      color: var(--text-secondary);
+      font-size: 14px;
+      background: rgba(255,255,255,0.05);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-light);
+      font-size: 16px;
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 20px 16px; }
+      .header h1 { font-size: 24px; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>{% trans 'Analytics Dashboard' %}</h1>
+      <a href="{% url 'index' %}" class="back-btn">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="18" height="18">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        {% trans 'Back to App' %}
+      </a>
+    </header>
+
+    <div id="loading" class="loading">{% trans 'Loading analytics data...' %}</div>
+
+    <div id="content" style="display: none;">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-title">{% trans 'Total Users' %}</span>
+          <span class="stat-value" id="val-users">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">{% trans 'Total Sessions' %}</span>
+          <span class="stat-value" id="val-sessions">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">{% trans 'Total Documents' %}</span>
+          <span class="stat-value" id="val-documents">-</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-title">{% trans 'Total Messages' %}</span>
+          <span class="stat-value" id="val-messages">-</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>{% trans 'Top Users by Activity' %}</h2>
+        <ul class="user-list" id="top-users-list">
+          <!-- Populated by JS -->
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/analytics/');
+        if (!res.ok) {
+          throw new Error('Unauthorized or failed to load');
+        }
+        const data = await res.json();
+        
+        // Update totals
+        document.getElementById('val-users').textContent = data.totals.users;
+        document.getElementById('val-sessions').textContent = data.totals.sessions;
+        document.getElementById('val-documents').textContent = data.totals.documents;
+        document.getElementById('val-messages').textContent = data.totals.messages;
+        
+        // Update top users
+        const list = document.getElementById('top-users-list');
+        list.innerHTML = '';
+        
+        if (data.top_users.length === 0) {
+          list.innerHTML = '<li class="loading">No user data available</li>';
+        } else {
+          data.top_users.forEach(u => {
+            list.innerHTML += `
+              <li class="user-item">
+                <div class="user-name">
+                  <div class="user-avatar">${u.username.charAt(0).toUpperCase()}</div>
+                  ${u.username}
+                </div>
+                <div class="user-sessions">${u.sessions} sessions</div>
+              </li>
+            `;
+          });
+        }
+        
+        // Show content
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+        
+      } catch (err) {
+        document.getElementById('loading').textContent = 'Error loading dashboard. Are you an admin?';
+        document.getElementById('loading').style.color = '#ef4444';
+      }
+    });
+  </script>
+</body>
+</html>

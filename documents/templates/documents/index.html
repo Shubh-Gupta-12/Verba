@@ -1014,10 +1014,18 @@
           </div>
           <span style="font-size:14px;font-weight:500;color:var(--text-primary);">{{ user.username }}</span>
         </div>
-        <a href="{% url 'logout' %}"
-          style="font-size:12px;color:var(--text-light);text-decoration:none;padding:6px 12px;border-radius:8px;border:1px solid var(--border);transition:all 0.2s;"
-          onmouseover="this.style.borderColor='var(--error)';this.style.color='var(--error)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-light)'">Logout</a>
+        <div style="display:flex;gap:8px;">
+          {% if user.is_staff %}
+          <a href="{% url 'analytics_page' %}"
+            style="font-size:12px;color:var(--text-light);text-decoration:none;padding:6px 12px;border-radius:8px;border:1px solid var(--border);transition:all 0.2s;"
+            onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-light)'">{% trans 'Admin' %}</a>
+          {% endif %}
+          <a href="{% url 'logout' %}"
+            style="font-size:12px;color:var(--text-light);text-decoration:none;padding:6px 12px;border-radius:8px;border:1px solid var(--border);transition:all 0.2s;"
+            onmouseover="this.style.borderColor='var(--error)';this.style.color='var(--error)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-light)'">{% trans 'Logout' %}</a>
+        </div>
       </div>
     </div>
   </aside>

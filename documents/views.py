@@ -409,3 +409,50 @@ def export_chat(request, session_id):
 	response["Content-Disposition"] = f'attachment; filename="{session.title[:50]}.md"'
 	return response
 
+
+@login_required
+@require_http_methods(["GET"])
+def analytics_dashboard(request):
+	"""Return aggregate analytics for the platform (admin only)."""
+	if not request.user.is_staff:
+		return JsonResponse({"error": "Unauthorized"}, status=403)
+		
+	from django.contrib.auth.models import User
+	from django.db.models import Count
+	
+	total_users = User.objects.count()
+	total_sessions = ChatSession.objects.count()
+	total_messages = ChatMessage.objects.count()
+	total_documents = Document.objects.count()
+	
+	# Top 5 users by session count
+	top_users = User.objects.annotate(
+		session_count=Count('chatsession')
+	).order_by('-session_count')[:5]
+	
+	top_users_data = [
+		{"username": u.username, "sessions": u.session_count}
+		for u in top_users
+	]
+	
+	return JsonResponse({
+		"totals": {
+			"users": total_users,
+			"sessions": total_sessions,
+			"messages": total_messages,
+			"documents": total_documents,
+		},
+		"top_users": top_users_data
+	})
+
+
+@login_required
+@require_http_methods(["GET"])
+def analytics_page(request):
+	"""Render the analytics dashboard page (admin only)."""
+	if not request.user.is_staff:
+		from django.shortcuts import redirect
+		from django.contrib import messages
+		messages.error(request, "You do not have permission to view this page.")
+		return redirect("index")
+	return render(request, "documents/analytics.html")

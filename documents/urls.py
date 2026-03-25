@@ -24,4 +24,6 @@ urlpatterns = [
     path("api/documents/<int:document_id>/preview/", views.preview_document, name="preview_document"),
     path("api/models/", views.list_models, name="list_models"),
     path("api/search/", views.search_sessions, name="search_sessions"),
+    path("api/analytics/", views.analytics_dashboard, name="analytics"),
+    path("analytics/", views.analytics_page, name="analytics_page"),
 ]
