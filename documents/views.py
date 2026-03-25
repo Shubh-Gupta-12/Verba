@@ -193,6 +193,9 @@ def ask_question(request):
 	if session:
 		document_ids = list(session.documents.filter(status=Document.STATUS_READY).values_list("id", flat=True))
 
+	if not document_ids:
+		return JsonResponse({"error": "Please upload a document first. You can only ask questions about your uploaded documents."}, status=400)
+
 	# Build conversation history for memory
 	chat_history = None
 	if session:
@@ -266,6 +269,9 @@ def ask_question_stream(request):
 	document_ids: List[int] = []
 	if session:
 		document_ids = list(session.documents.filter(status=Document.STATUS_READY).values_list("id", flat=True))
+
+	if not document_ids:
+		return JsonResponse({"error": "Please upload a document first. You can only ask questions about your uploaded documents."}, status=400)
 
 	# Build conversation history
 	chat_history = None

@@ -1303,6 +1303,16 @@
       renderDocuments(data.documents || []);
       showMainContent(true);
 
+      // Enable/disable chat based on documents
+      const hasReadyDocs = data.documents && data.documents.some(d => d.status === 'ready');
+      questionInput.disabled = !hasReadyDocs;
+      askButton.disabled = !hasReadyDocs;
+      if (!hasReadyDocs) {
+        questionInput.placeholder = "Upload a document first to start chatting...";
+      } else {
+        questionInput.placeholder = "Ask a question about your documents...";
+      }
+
       if (data.documents && data.documents.some(d => d.status === 'processing')) {
         pollTimerId = setTimeout(() => {
           if (currentSessionId === sessionId) loadSession(sessionId);

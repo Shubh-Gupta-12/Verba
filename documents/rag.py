@@ -193,8 +193,11 @@ def delete_document_chunks(document_id: int) -> None:
 def _build_prompt(question: str, context_chunks: List[str], chat_history: Optional[List[dict]] = None) -> List[dict]:
     context_text = "\n\n".join(context_chunks)
     system_prompt = (
-        "You are a helpful assistant. Answer strictly from the provided context. "
-        "If the context does not contain the answer, say you do not have enough information."
+        "You are Verba, a document Q&A assistant. You MUST answer ONLY using information "
+        "found in the provided document context below. Do NOT use any outside knowledge. "
+        "If the document context does not contain relevant information to answer the question, "
+        "respond with: \"I could not find the answer in your uploaded documents. "
+        "Please try rephrasing your question or upload a document that contains this information.\""
     )
     messages = [{"role": "system", "content": system_prompt}]
 
