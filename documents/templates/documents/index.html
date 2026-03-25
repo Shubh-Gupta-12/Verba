@@ -1,5 +1,6 @@
+{% load i18n %}
 <!doctype html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}">
 
 <head>
   <meta charset="utf-8" />
@@ -980,15 +981,31 @@
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
       </svg>
-      New Chat
+      {% trans 'New Chat' %}
     </button>
 
     <div class="sidebar-section">
-      <div class="sidebar-section-title">Recent Chats</div>
+      <div class="sidebar-section-title">{% trans 'Recent Chats' %}</div>
       <div class="session-list" id="session-list"></div>
     </div>
 
-    <div style="margin-top:auto;padding-top:24px;border-top:1px solid var(--border);">
+    <div class="sidebar-section" style="margin-top:auto;">
+      <form action="{% url 'set_language' %}" method="post" style="padding:0 4px;">
+        {% csrf_token %}
+        <input name="next" type="hidden" value="{{ redirect_to }}">
+        <select name="language" onchange="this.form.submit()" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-main);color:var(--text-secondary);font-size:13px;outline:none;">
+          {% get_current_language as LANGUAGE_CODE %}
+          {% get_available_languages as LANGUAGES %}
+          {% for lang in LANGUAGES %}
+            <option value="{{ lang.0 }}"{% if lang.0 == LANGUAGE_CODE %} selected{% endif %}>
+              {{ lang.1 }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+
+    <div style="padding-top:16px;border-top:1px solid var(--border);margin-top:16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 4px;">
         <div style="display:flex;align-items:center;gap:10px;">
           <div
@@ -1015,7 +1032,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <h1>Document Q&A Assistant</h1>
+        <h1>{% trans 'Document Q&A Assistant' %}</h1>
       </div>
       <div class="header-actions">
         <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
@@ -1041,10 +1058,10 @@
                 d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </div>
-          <h2>Start a New Conversation</h2>
-          <p>Upload documents and ask questions to get AI-powered insights from your files.</p>
+          <h2>{% trans 'Start a New Conversation' %}</h2>
+          <p>{% trans 'Upload documents and ask questions to get AI-powered insights from your files.' %}</p>
           <button class="start-btn" id="start-chat-btn">
-            Start New Chat
+            {% trans 'Start New Chat' %}
           </button>
         </div>
       </div>
@@ -1055,7 +1072,7 @@
       <!-- Documents Panel -->
       <section class="panel documents-panel">
         <div class="panel-header">
-          <h3>Documents</h3>
+          <h3>{% trans 'Documents' %}</h3>
         </div>
         <div class="panel-content">
           <!-- Upload Area -->
@@ -1064,8 +1081,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            <p class="upload-text">Drag and drop files here</p>
-            <p class="upload-text">or <span class="upload-browse">browse</span></p>
+            <p class="upload-text">{% trans 'Drag and drop files here' %}</p>
+            <p class="upload-text">{% trans 'or' %} <span class="upload-browse">{% trans 'browse' %}</span></p>
             <input type="file" id="file-input" accept=".pdf,.docx,.txt" />
           </div>
 
@@ -1077,8 +1094,8 @@
       <!-- Chat Panel -->
       <section class="panel chat-panel">
         <div class="chat-header">
-          <p class="chatting-with">Chatting with:</p>
-          <h3 class="chat-title" id="chat-title">Your Documents</h3>
+          <p class="chatting-with">{% trans 'Chatting with:' %}</p>
+          <h3 class="chat-title" id="chat-title">{% trans 'Your Documents' %}</h3>
         </div>
 
         <div class="chat-window" id="chat-window"></div>

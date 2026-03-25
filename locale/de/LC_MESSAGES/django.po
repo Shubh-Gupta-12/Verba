@@ -1,0 +1,68 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# 
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-03-25 15:58+0530\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+#: .\documents\templates\documents\index.html:984
+msgid "New Chat"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:988
+msgid "Recent Chats"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1035
+msgid "Document Q&A Assistant"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1061
+msgid "Start a New Conversation"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1062
+msgid ""
+"Upload documents and ask questions to get AI-powered insights from your "
+"files."
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1064
+msgid "Start New Chat"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1075
+msgid "Documents"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1084
+msgid "Drag and drop files here"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1085
+msgid "or"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1085
+msgid "browse"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1097
+msgid "Chatting with:"
+msgstr ""
+
+#: .\documents\templates\documents\index.html:1098
+msgid "Your Documents"
+msgstr ""
