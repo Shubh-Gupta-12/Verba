@@ -114,6 +114,7 @@
       letter-spacing: -0.025em;
       background: var(--primary-gradient);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -1290,7 +1291,9 @@
       }
     };
 
+    let pollTimerId = null;
     const loadSession = async (sessionId) => {
+      if (pollTimerId) { clearTimeout(pollTimerId); pollTimerId = null; }
       currentSessionId = sessionId;
       const res = await fetch(`/api/sessions/${sessionId}/`);
       const data = await res.json();
@@ -1298,6 +1301,12 @@
       renderMessages(data.messages || []);
       renderDocuments(data.documents || []);
       showMainContent(true);
+
+      if (data.documents && data.documents.some(d => d.status === 'processing')) {
+        pollTimerId = setTimeout(() => {
+          if (currentSessionId === sessionId) loadSession(sessionId);
+        }, 3000);
+      }
 
       if (!data.documents?.length) {
         chatTitle.textContent = data.title || "Your Documents";

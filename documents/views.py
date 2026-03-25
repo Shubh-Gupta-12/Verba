@@ -8,6 +8,7 @@ from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpRespo
 from django.shortcuts import render, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import cache_page
 from django_ratelimit.decorators import ratelimit
 
 from .models import Document, ChatMessage, ChatSession
@@ -344,6 +345,7 @@ def delete_document(request, document_id):
 
 @login_required
 @require_http_methods(["GET"])
+@cache_page(60 * 60)
 def list_models(request):
 	"""Return a list of available LLM models."""
 	models = [
@@ -412,6 +414,7 @@ def export_chat(request, session_id):
 
 @login_required
 @require_http_methods(["GET"])
+@cache_page(60 * 5)
 def analytics_dashboard(request):
 	"""Return aggregate analytics for the platform (admin only)."""
 	if not request.user.is_staff:
