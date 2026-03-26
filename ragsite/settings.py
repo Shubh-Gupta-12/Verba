@@ -191,11 +191,11 @@ DATABASES = {
     )
 }
 
-# Caching (100% free using Database Cache, no Redis needed)
+# Caching (in-memory, zero-config — no database table needed)
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'my_cache_table',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'verba-cache',
     }
 }
 

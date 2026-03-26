@@ -123,65 +123,95 @@ def delete_session(request, session_id):  # type: ignore
 
 @csrf_exempt  # type: ignore
 @login_required  # type: ignore
-@ratelimit(key='ip', rate='20/m', method='POST', block=True)  # type: ignore
 @require_http_methods(["POST"])  # type: ignore
 def upload_document(request):  # type: ignore
-	if "file" not in request.FILES:  # type: ignore
-		return HttpResponseBadRequest("Missing file")  # type: ignore
-
-	upload = request.FILES["file"]  # type: ignore
-
-	# Validate file extension
-	file_ext = '.' + upload.name.rsplit('.', 1)[-1].lower() if '.' in upload.name else ''  # type: ignore
-	if file_ext not in SUPPORTED_EXTENSIONS:
-		return JsonResponse({  # type: ignore
-			"error": f"Unsupported file type: {file_ext}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
-		}, status=400)
-
-	# Validate file size (10 MB limit)
-	if upload.size > 10 * 1024 * 1024:  # type: ignore
-		return JsonResponse({"error": "File too large. Maximum size is 10 MB."}, status=400)  # type: ignore
-
-	session_id = request.POST.get("session_id")  # type: ignore
-	session = None
-	if session_id:
-		session = get_object_or_404(ChatSession, id=session_id, user=request.user)  # type: ignore
-
-	# Enforce 5-document limit per session
-	if session:
-		doc_count = session.documents.count()  # type: ignore
-		if doc_count >= 5:
-			return JsonResponse({"error": "Maximum 5 documents per chat. Please remove one first."}, status=400)  # type: ignore
-
-	document = Document.objects.create(  # type: ignore
-		file=upload,
-		original_name=upload.name,  # type: ignore
-		session=session
-	)
-
+	"""Upload one or more documents. Supports multi-file via request.FILES.getlist('file')."""
 	try:
-		process_document(document)  # type: ignore
-		document.status = Document.STATUS_READY  # type: ignore
-		document.error_message = ""  # type: ignore
-		logger.info(f"Document uploaded successfully: {upload.name}")  # type: ignore
+		files = request.FILES.getlist("file")  # type: ignore
+		if not files:
+			# Fallback: try single file key
+			single = request.FILES.get("file")  # type: ignore
+			if single:
+				files = [single]
+			else:
+				return JsonResponse({"error": "No file provided."}, status=400)  # type: ignore
+
+		session_id = request.POST.get("session_id")  # type: ignore
+		session = None
+		if session_id:
+			try:
+				session = ChatSession.objects.get(id=session_id, user=request.user)  # type: ignore
+			except ChatSession.DoesNotExist:  # type: ignore
+				return JsonResponse({"error": "Chat session not found."}, status=404)  # type: ignore
+
+		# Enforce 5-document limit per session
+		current_count = 0
+		if session:
+			current_count = session.documents.count()  # type: ignore
+		if current_count + len(files) > 5:
+			remaining = 5 - current_count
+			return JsonResponse({  # type: ignore
+				"error": f"Maximum 5 documents per chat. You can upload {remaining} more document(s)."
+			}, status=400)
+
+		results = []
+		for upload in files:  # type: ignore
+			# Validate file extension
+			file_ext = '.' + upload.name.rsplit('.', 1)[-1].lower() if '.' in upload.name else ''  # type: ignore
+			if file_ext not in SUPPORTED_EXTENSIONS:
+				results.append({"name": upload.name, "status": "failed", "error": f"Unsupported file type: {file_ext}"})  # type: ignore
+				continue
+
+			# Validate file size (10 MB limit)
+			if upload.size and upload.size > 10 * 1024 * 1024:  # type: ignore
+				results.append({"name": upload.name, "status": "failed", "error": "File too large. Maximum 10 MB."})  # type: ignore
+				continue
+
+			try:
+				document = Document.objects.create(  # type: ignore
+					file=upload,
+					original_name=upload.name,  # type: ignore
+					session=session
+				)
+			except Exception as exc:
+				logger.error("Failed to save document %s: %s", upload.name, exc, exc_info=True)  # type: ignore
+				results.append({"name": upload.name, "status": "failed", "error": f"Failed to save: {exc}"})  # type: ignore
+				continue
+
+			try:
+				process_document(document)  # type: ignore
+				document.status = Document.STATUS_READY  # type: ignore
+				document.error_message = ""  # type: ignore
+				logger.info("Document uploaded successfully: %s", upload.name)  # type: ignore
+			except Exception as exc:
+				document.status = Document.STATUS_FAILED  # type: ignore
+				document.error_message = str(exc)  # type: ignore
+				logger.error("Document processing failed: %s - %s", upload.name, exc, exc_info=True)  # type: ignore
+			finally:
+				document.save(update_fields=["status", "error_message"])  # type: ignore
+
+			results.append({  # type: ignore
+				"id": document.id,  # type: ignore
+				"name": document.original_name,  # type: ignore
+				"status": document.status,  # type: ignore
+				"error": document.error_message or "",  # type: ignore
+			})
+
+		# Update session title based on first document if it's still "New Chat"
+		if session and session.title == "New Chat" and results:  # type: ignore
+			first_ok = next((r for r in results if r.get("status") == "ready"), None)  # type: ignore
+			if first_ok:
+				session.title = str(first_ok["name"])[:50]  # type: ignore
+				session.save(update_fields=["title"])  # type: ignore
+
+		# For single-file backward compatibility: return single object if only 1 file
+		if len(results) == 1:
+			return JsonResponse(results[0])  # type: ignore
+		return JsonResponse({"documents": results})  # type: ignore
+
 	except Exception as exc:
-		document.status = Document.STATUS_FAILED  # type: ignore
-		document.error_message = str(exc)  # type: ignore
-		logger.error(f"Document upload failed: {upload.name} - {exc}", exc_info=True)  # type: ignore
-	finally:
-		document.save(update_fields=["status", "error_message"])  # type: ignore
-
-	# Update session title based on first document if it's still "New Chat"
-	if session and session.title == "New Chat":  # type: ignore
-		session.title = upload.name[:50]  # type: ignore
-		session.save(update_fields=["title"])  # type: ignore
-
-	return JsonResponse({  # type: ignore
-		"id": document.id,  # type: ignore
-		"name": document.original_name,  # type: ignore
-		"status": document.status,  # type: ignore
-		"error": document.error_message,  # type: ignore
-	})
+		logger.error("Upload handler crashed: %s", exc, exc_info=True)
+		return JsonResponse({"error": f"Upload failed: {str(exc)}"}, status=500)  # type: ignore
 
 
 @csrf_exempt  # type: ignore

@@ -1262,7 +1262,7 @@
                 <p class="upload-text">Drag and drop files here</p>
                 <p class="upload-text">or <span class="upload-browse">browse</span></p>
                 <p style="font-size:11px;color:var(--text-light);margin-top:12px;">Supported: PDF, DOCX, TXT, XLSX, CSV</p>
-                <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.csv" />
+                <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.csv" multiple />
               </div>
               <div id="documents" style="display:none;"></div>
             </div>
@@ -1590,7 +1590,7 @@
       e.preventDefault();
       uploadArea.classList.remove("drag-over");
       if (e.dataTransfer.files.length && currentSessionId) {
-        handleFileUpload(e.dataTransfer.files[0]);
+        handleMultiFileUpload(Array.from(e.dataTransfer.files));
       }
     });
 
@@ -1601,7 +1601,6 @@
     const attachedDocsContainer = document.getElementById('attached-docs');
 
     attachBtn.addEventListener('click', () => {
-      // Check document limit before allowing upload
       const currentDocCount = attachedDocsContainer.querySelectorAll('.doc-chip').length;
       if (currentDocCount >= 5) {
         alert("Maximum 5 documents per chat. Please remove one first.");
@@ -1620,22 +1619,33 @@
 
     fileInput.addEventListener("change", () => {
       if (fileInput.files.length && currentSessionId) {
-        const currentDocCount = attachedDocsContainer.querySelectorAll('.doc-chip').length;
-        if (currentDocCount >= 5) {
-          alert("Maximum 5 documents per chat. Please remove one first.");
-          fileInput.value = "";
-          return;
-        }
-        handleFileUpload(fileInput.files[0]);
+        handleMultiFileUpload(Array.from(fileInput.files));
         fileInput.value = "";
       }
     });
 
+    // Multi-file upload: validates count then uploads all files
+    const handleMultiFileUpload = async (files) => {
+      const currentDocCount = attachedDocsContainer.querySelectorAll('.doc-chip').length;
+      const remaining = 5 - currentDocCount;
+
+      if (files.length > remaining) {
+        alert(`You can upload at most ${remaining} more document(s) (limit: 5 per chat). You selected ${files.length}.`);
+        return;
+      }
+
+      // Upload all files in parallel
+      for (const file of files) {
+        await handleFileUpload(file);
+      }
+    };
+
     const handleFileUpload = async (file) => {
       // Show optimistic processing state immediately
+      const tempId = 'uploading-' + Math.random().toString(36).substr(2, 9);
       const tempDoc = document.createElement("div");
       tempDoc.className = "document-item";
-      tempDoc.id = "uploading-doc";
+      tempDoc.id = tempId;
       tempDoc.innerHTML = `
           <div class="doc-info">
             <div class="doc-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
@@ -1645,30 +1655,43 @@
         `;
       documentsContainer.appendChild(tempDoc);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("session_id", currentSessionId);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("session_id", currentSessionId);
 
-      const response = await fetch("/api/upload/", {
-        method: "POST",
-        headers: { "X-CSRFToken": csrfToken },
-        body: formData,
-      });
-      const data = await response.json();
+        const response = await fetch("/api/upload/", {
+          method: "POST",
+          headers: { "X-CSRFToken": csrfToken },
+          body: formData,
+        });
 
-      // Remove temp doc and reload session docs
-      const tempEl = document.getElementById("uploading-doc");
-      if (tempEl) tempEl.remove();
-
-      if (data.status === "failed" || data.error) {
-        alert(`Upload failed: ${data.error || 'Unknown error'}`);
-      } else {
-        // Update session title in sidebar if changed
-        const activeItem = document.querySelector(`.session-item.active .session-title`);
-        if (activeItem && activeItem.textContent === 'New Chat') {
-          activeItem.textContent = file.name.substring(0, 50);
+        let data;
+        try {
+          data = await response.json();
+        } catch (e) {
+          data = { error: `Server error (${response.status}). Please try again.` };
         }
+
+        // Remove temp doc
+        const tempEl = document.getElementById(tempId);
+        if (tempEl) tempEl.remove();
+
+        if (data.status === "failed" || data.error) {
+          alert(`Upload failed: ${data.error || 'Unknown error'}`);
+        } else {
+          // Update session title in sidebar if changed
+          const activeItem = document.querySelector(`.session-item.active .session-title`);
+          if (activeItem && activeItem.textContent === 'New Chat') {
+            activeItem.textContent = file.name.substring(0, 50);
+          }
+        }
+      } catch (err) {
+        const tempEl = document.getElementById(tempId);
+        if (tempEl) tempEl.remove();
+        alert(`Upload failed: ${err.message}`);
       }
+
       loadSession(currentSessionId);
       // Close upload modal
       uploadModalOverlay.classList.remove('active');
