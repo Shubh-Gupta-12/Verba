@@ -110,7 +110,7 @@ def upload_document(request):
 	file_ext = '.' + upload.name.rsplit('.', 1)[-1].lower() if '.' in upload.name else ''
 	if file_ext not in SUPPORTED_EXTENSIONS:
 		return JsonResponse({
-			"error": f"Unsupported file type: {file_ext}. Supported: {', '.join(SUPPORTED_EXTENSIONS)}"
+			"error": f"Unsupported file type: {file_ext}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
 		}, status=400)
 
 	# Validate file size (10 MB limit)
@@ -120,7 +120,13 @@ def upload_document(request):
 	session_id = request.POST.get("session_id")
 	session = None
 	if session_id:
-		session = get_object_or_404(ChatSession, id=session_id)
+		session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+
+	# Enforce 5-document limit per session
+	if session:
+		doc_count = session.documents.count()
+		if doc_count >= 5:
+			return JsonResponse({"error": "Maximum 5 documents per chat. Please remove one first."}, status=400)
 
 	document = Document.objects.create(
 		file=upload,
@@ -136,7 +142,7 @@ def upload_document(request):
 	except Exception as exc:
 		document.status = Document.STATUS_FAILED
 		document.error_message = str(exc)
-		logger.error(f"Document upload failed: {upload.name} - {exc}")
+		logger.error(f"Document upload failed: {upload.name} - {exc}", exc_info=True)
 	finally:
 		document.save(update_fields=["status", "error_message"])
 

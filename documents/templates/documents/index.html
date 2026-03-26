@@ -1261,8 +1261,8 @@
                 </svg>
                 <p class="upload-text">Drag and drop files here</p>
                 <p class="upload-text">or <span class="upload-browse">browse</span></p>
-                <p style="font-size:11px;color:var(--text-light);margin-top:12px;">Supported: PDF, DOCX, TXT, XLSX, CSV, Images</p>
-                <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.csv,.png,.jpg,.jpeg" />
+                <p style="font-size:11px;color:var(--text-light);margin-top:12px;">Supported: PDF, DOCX, TXT, XLSX, CSV</p>
+                <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.csv" />
               </div>
               <div id="documents" style="display:none;"></div>
             </div>
@@ -1601,6 +1601,12 @@
     const attachedDocsContainer = document.getElementById('attached-docs');
 
     attachBtn.addEventListener('click', () => {
+      // Check document limit before allowing upload
+      const currentDocCount = attachedDocsContainer.querySelectorAll('.doc-chip').length;
+      if (currentDocCount >= 5) {
+        alert("Maximum 5 documents per chat. Please remove one first.");
+        return;
+      }
       uploadModalOverlay.classList.add('active');
     });
     uploadModalClose.addEventListener('click', () => {
@@ -1614,6 +1620,12 @@
 
     fileInput.addEventListener("change", () => {
       if (fileInput.files.length && currentSessionId) {
+        const currentDocCount = attachedDocsContainer.querySelectorAll('.doc-chip').length;
+        if (currentDocCount >= 5) {
+          alert("Maximum 5 documents per chat. Please remove one first.");
+          fileInput.value = "";
+          return;
+        }
         handleFileUpload(fileInput.files[0]);
         fileInput.value = "";
       }
@@ -1648,8 +1660,8 @@
       const tempEl = document.getElementById("uploading-doc");
       if (tempEl) tempEl.remove();
 
-      if (data.status === "failed") {
-        addMessage("assistant", `Upload failed: ${data.error}`);
+      if (data.status === "failed" || data.error) {
+        alert(`Upload failed: ${data.error || 'Unknown error'}`);
       } else {
         // Update session title in sidebar if changed
         const activeItem = document.querySelector(`.session-item.active .session-title`);

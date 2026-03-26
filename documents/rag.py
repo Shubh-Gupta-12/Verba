@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import csv
+import io
 import logging
 import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Iterable, List, Optional
@@ -21,7 +24,7 @@ from .models import Document, DocumentChunk
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".xlsx", ".xls", ".csv", ".png", ".jpg", ".jpeg"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".xlsx", ".xls", ".csv"}
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2  # seconds
 
@@ -84,9 +87,28 @@ def _extract_text(file_path: Path) -> str:
     if suffix == ".pdf":
         reader = PdfReader(str(file_path))
         return "\n".join(page.extract_text() or "" for page in reader.pages)
-    if suffix == ".docx":
+    if suffix in (".docx", ".doc"):
         doc = docx.Document(str(file_path))
         return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+    if suffix in (".xlsx", ".xls"):
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(str(file_path), data_only=True)
+            lines = []
+            for sheet in wb.sheetnames:
+                ws = wb[sheet]
+                lines.append(f"--- Sheet: {sheet} ---")
+                for row in ws.iter_rows(values_only=True):
+                    row_text = "\t".join(str(cell) if cell is not None else "" for cell in row)
+                    if row_text.strip():
+                        lines.append(row_text)
+            return "\n".join(lines)
+        except ImportError:
+            return file_path.read_text(encoding="utf-8", errors="ignore")
+    if suffix == ".csv":
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
+        reader = csv.reader(io.StringIO(text))
+        return "\n".join("\t".join(row) for row in reader)
 
     return file_path.read_text(encoding="utf-8", errors="ignore")
 
@@ -134,7 +156,6 @@ def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
 
 
 def process_document(document: Document) -> None:
-    import tempfile
     logger.info(f"Processing document: {document.original_name} (ID: {document.id})")
     _ensure_api_keys()
 
@@ -205,20 +226,26 @@ def delete_document_chunks(document_id: int) -> None:
 def _build_prompt(question: str, context_chunks: List[str], chat_history: Optional[List[dict]] = None) -> List[dict]:
     context_text = "\n\n".join(context_chunks)
     system_prompt = (
-        "You are Verba, a document Q&A assistant. You MUST answer ONLY using information "
-        "found in the provided document context below. Do NOT use any outside knowledge. "
-        "If the document context does not contain relevant information to answer the question, "
-        "respond with: \"I could not find the answer in your uploaded documents. "
-        "Please try rephrasing your question or upload a document that contains this information.\""
+        "You are Verba, an expert document Q&A assistant. "
+        "Answer ONLY using information from the provided document context. "
+        "Do NOT use any outside knowledge.\n\n"
+        "Response guidelines:\n"
+        "- Use clear structure with headings, bullet points, and numbered lists where helpful\n"
+        "- Bold key terms and important information using **bold**\n"
+        "- Be concise but thorough\n"
+        "- If the context contains tables or data, present them clearly\n"
+        "- If the answer spans multiple topics, organize with clear sections\n"
+        "- If the document context does not contain sufficient information, say: "
+        "'I could not find the answer in your uploaded documents.'\n"
+        "- Never fabricate information not present in the context"
     )
     messages = [{"role": "system", "content": system_prompt}]
 
-    # Add conversation history for memory (Phase 3 item 14)
     if chat_history:
-        for msg in chat_history[-6:]:  # Last 6 messages for context window
+        for msg in chat_history[-6:]:
             messages.append({"role": msg["role"], "content": msg["content"]})
 
-    user_prompt = f"Context:\n{context_text}\n\nQuestion: {question}"
+    user_prompt = f"Document Context:\n{context_text}\n\nQuestion: {question}"
     messages.append({"role": "user", "content": user_prompt})
     return messages
 
