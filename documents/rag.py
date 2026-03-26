@@ -162,15 +162,29 @@ def process_document(document: Document) -> None:  # type: ignore
 
     # Download file to a temp file — works with both local and S3 storage
     suffix = Path(document.original_name).suffix
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode='wb') as tmp:
-        for chunk in document.file.chunks():  # type: ignore
-            tmp.write(chunk)
-        tmp_path = Path(tmp.name)
-
+    tmp_path = None
     try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode='wb') as tmp:
+            tmp_path = Path(tmp.name)
+            # Properly open file from storage (S3 or local)
+            try:
+                document.file.open('rb')  # type: ignore
+                file_content = document.file.read()  # type: ignore
+                document.file.close()  # type: ignore
+            except Exception as e:
+                logger.warning(f"Failed to open file via storage: {e}, trying direct read")
+                file_content = document.file.read()  # type: ignore
+            
+            if not file_content:
+                raise ValueError(f"File is empty or could not be read: {document.original_name}")
+            
+            tmp.write(file_content)
+            logger.info(f"Downloaded {len(file_content)} bytes to temp file: {tmp_path}")
+
         text = _extract_text(tmp_path)
     finally:
-        tmp_path.unlink(missing_ok=True)  # Clean up temp file
+        if tmp_path and tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)  # Clean up temp file
 
     chunks = _chunk_text(text)
 
