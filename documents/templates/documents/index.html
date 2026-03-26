@@ -937,6 +937,138 @@
       color: var(--primary);
       background: rgba(99, 102, 241, 0.1);
     }
+
+    /* Attachment Button */
+    .attach-btn {
+      background: none;
+      border: none;
+      color: var(--text-light);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .attach-btn:hover {
+      color: var(--primary);
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* Attached Document Chips */
+    .attached-docs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 0 32px;
+    }
+    .attached-docs:empty { display: none; }
+    .doc-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--primary);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      max-width: 200px;
+    }
+    .doc-chip:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--primary);
+    }
+    .doc-chip .chip-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .doc-chip .chip-status {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .doc-chip .chip-status.ready {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+    }
+    .doc-chip .chip-status.processing {
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary);
+      animation: pulse 1.5s infinite;
+    }
+    .doc-chip .chip-status.failed {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+    }
+    .doc-chip .chip-remove {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      padding: 0;
+      font-size: 16px;
+      line-height: 1;
+      opacity: 0.6;
+    }
+    .doc-chip .chip-remove:hover { opacity: 1; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Upload Modal */
+    .upload-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+    .upload-modal-overlay.active { display: flex; }
+    .upload-modal {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      animation: fadeIn 0.3s ease;
+    }
+    .upload-modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .upload-modal-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .upload-modal-body {
+      padding: 24px;
+    }
+
+    /* Documents panel CSS — keep for chips but remove panel width */
+    .documents-panel {
+      display: none;
+    }
   </style>
 </head>
 
@@ -1079,28 +1211,6 @@
 
     <!-- Main Container -->
     <div class="content-area" id="main-container" style="display:none;">
-      <!-- Documents Panel -->
-      <section class="panel documents-panel">
-        <div class="panel-header">
-          <h3>{% trans 'Documents' %}</h3>
-        </div>
-        <div class="panel-content">
-          <!-- Upload Area -->
-          <div class="upload-area" id="upload-area">
-            <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <p class="upload-text">{% trans 'Drag and drop files here' %}</p>
-            <p class="upload-text">{% trans 'or' %} <span class="upload-browse">{% trans 'browse' %}</span></p>
-            <input type="file" id="file-input" accept=".pdf,.docx,.txt" />
-          </div>
-
-          <!-- Documents List -->
-          <div id="documents"></div>
-        </div>
-      </section>
-
       <!-- Chat Panel -->
       <section class="panel chat-panel">
         <div class="chat-header">
@@ -1110,16 +1220,52 @@
 
         <div class="chat-window" id="chat-window"></div>
 
+        <!-- Attached Documents Chips -->
+        <div id="attached-docs" class="attached-docs"></div>
+
         <div class="chat-input-area">
           <div class="chat-input-container">
-            <textarea id="question" placeholder="Ask a question about your documents..." rows="1"></textarea>
-            <button class="send-btn" id="ask-button">
+            <button class="attach-btn" id="attach-btn" title="Attach a document">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+            </button>
+            <textarea id="question" placeholder="Upload a document first to start chatting..." rows="1" disabled></textarea>
+            <button class="send-btn" id="ask-button" disabled>
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
               <span>Ask</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Upload Modal -->
+        <div class="upload-modal-overlay" id="upload-modal-overlay">
+          <div class="upload-modal">
+            <div class="upload-modal-header">
+              <h3>Attach Document</h3>
+              <button class="preview-close" id="upload-modal-close">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+            <div class="upload-modal-body">
+              <div class="upload-area" id="upload-area">
+                <svg class="upload-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p class="upload-text">Drag and drop files here</p>
+                <p class="upload-text">or <span class="upload-browse">browse</span></p>
+                <p style="font-size:11px;color:var(--text-light);margin-top:12px;">Supported: PDF, DOCX, TXT, XLSX, CSV, Images</p>
+                <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.csv,.png,.jpg,.jpeg" />
+              </div>
+              <div id="documents" style="display:none;"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -1188,8 +1334,9 @@
 
     const renderDocuments = (docs) => {
       documentsContainer.innerHTML = "";
+      // Render doc chips above chat input
+      attachedDocsContainer.innerHTML = "";
       if (!docs.length) {
-        documentsContainer.innerHTML = '<div class="empty-state"><p>No documents uploaded</p></div>';
         return;
       }
 
@@ -1238,6 +1385,21 @@
           });
         }
         documentsContainer.appendChild(wrapper);
+
+        // Also add a chip above the chat input
+        const chip = document.createElement('div');
+        chip.className = 'doc-chip';
+        chip.innerHTML = `
+          <span class="chip-name">${doc.name}</span>
+          <span class="chip-status ${doc.status}">${doc.status}</span>
+          <button class="chip-remove" data-id="${doc.id}" title="Remove">&times;</button>
+        `;
+        chip.querySelector('.chip-name').addEventListener('click', () => previewDocument(doc.id));
+        chip.querySelector('.chip-remove').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteDocument(doc.id);
+        });
+        attachedDocsContainer.appendChild(chip);
       });
     };
 
@@ -1368,6 +1530,11 @@
       questionInput.disabled = true;
       askButton.disabled = true;
       questionInput.placeholder = "Upload a document first to start chatting...";
+      // Hide "No chats yet" empty state
+      const emptyState = sessionList.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+      // Clear attached docs chips
+      document.getElementById('attached-docs').innerHTML = '';
     };
 
     const deleteSession = async (sessionId) => {
@@ -1427,6 +1594,22 @@
       }
     });
 
+    // Upload Modal handlers
+    const attachBtn = document.getElementById('attach-btn');
+    const uploadModalOverlay = document.getElementById('upload-modal-overlay');
+    const uploadModalClose = document.getElementById('upload-modal-close');
+    const attachedDocsContainer = document.getElementById('attached-docs');
+
+    attachBtn.addEventListener('click', () => {
+      uploadModalOverlay.classList.add('active');
+    });
+    uploadModalClose.addEventListener('click', () => {
+      uploadModalOverlay.classList.remove('active');
+    });
+    uploadModalOverlay.addEventListener('click', (e) => {
+      if (e.target === uploadModalOverlay) uploadModalOverlay.classList.remove('active');
+    });
+
     uploadArea.addEventListener("click", () => fileInput.click());
 
     fileInput.addEventListener("change", () => {
@@ -1475,6 +1658,8 @@
         }
       }
       loadSession(currentSessionId);
+      // Close upload modal
+      uploadModalOverlay.classList.remove('active');
     };
 
     askButton.addEventListener("click", async () => {

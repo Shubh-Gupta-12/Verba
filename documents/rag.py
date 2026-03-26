@@ -21,7 +21,7 @@ from .models import Document, DocumentChunk
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".xlsx", ".xls", ".csv", ".png", ".jpg", ".jpeg"}
 MAX_RETRIES = 3
 RETRY_BACKOFF = 2  # seconds
 
