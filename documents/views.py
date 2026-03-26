@@ -13,9 +13,33 @@ from django_ratelimit.decorators import ratelimit
 
 from .models import Document, ChatMessage, ChatSession
 from .rag import answer_question, stream_answer_question, process_document, SUPPORTED_EXTENSIONS
+from django.core.cache import cache
+import time
+from datetime import datetime
 
 
 logger = logging.getLogger(__name__)
+
+def check_chat_limit(user):
+	# Free tier: 50 messages per 3 hours
+	limit = 50
+	window_hours = 3
+	cache_key = f"user_msg_limit_{user.id}"
+	
+	data = cache.get(cache_key)
+	now = time.time()
+	
+	if not data or now > data["reset_time"]:
+		data = {"count": 0, "reset_time": now + (window_hours * 3600)}
+	
+	if data["count"] >= limit:
+		reset_dt = datetime.fromtimestamp(data["reset_time"])
+		time_str = reset_dt.strftime("%I:%M %p")
+		return False, f"You have reached your limit of {limit} questions per {window_hours} hours. Please try again after {time_str}."
+		
+	data["count"] += 1
+	cache.set(cache_key, data, timeout=int(data["reset_time"] - now))
+	return True, ""
 
 
 @login_required
@@ -182,6 +206,10 @@ def ask_question(request):
 	if len(question) > 2000:
 		return JsonResponse({"error": "Question too long. Maximum 2000 characters."}, status=400)
 
+	is_allowed, limit_msg = check_chat_limit(request.user)
+	if not is_allowed:
+		return JsonResponse({"error": limit_msg}, status=403)
+
 	session_id = payload.get("session_id")
 	session = None
 	if session_id:
@@ -258,6 +286,10 @@ def ask_question_stream(request):
 
 	if len(question) > 2000:
 		return JsonResponse({"error": "Question too long. Maximum 2000 characters."}, status=400)
+
+	is_allowed, limit_msg = check_chat_limit(request.user)
+	if not is_allowed:
+		return JsonResponse({"error": limit_msg}, status=403)
 
 	session_id = payload.get("session_id")
 	session = None
