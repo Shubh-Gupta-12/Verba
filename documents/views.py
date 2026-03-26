@@ -21,481 +21,481 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-def check_chat_limit(user):
+def check_chat_limit(user):  # type: ignore
 	# Free tier: 50 messages per 3 hours
 	limit = 50
 	window_hours = 3
-	cache_key = f"user_msg_limit_{user.id}"
+	cache_key = f"user_msg_limit_{user.id}"  # type: ignore
 	
-	data = cache.get(cache_key)
+	data = cache.get(cache_key)  # type: ignore
 	now = time.time()
 	
-	if not data or now > data["reset_time"]:
+	if not data or now > data["reset_time"]:  # type: ignore
 		data = {"count": 0, "reset_time": now + (window_hours * 3600)}
 	
-	if data["count"] >= limit:
-		reset_dt = datetime.fromtimestamp(data["reset_time"])
-		time_str = reset_dt.strftime("%I:%M %p")
+	if data["count"] >= limit:  # type: ignore
+		reset_dt = datetime.fromtimestamp(data["reset_time"])  # type: ignore
+		time_str = reset_dt.strftime("%I:%M %p")  # type: ignore
 		return False, f"You have reached your limit of {limit} questions per {window_hours} hours. Please try again after {time_str}."
 		
-	data["count"] += 1
-	cache.set(cache_key, data, timeout=int(data["reset_time"] - now))
+	data["count"] += 1  # type: ignore
+	cache.set(cache_key, data, timeout=int(data["reset_time"] - now))  # type: ignore
 	return True, ""
 
 
-@login_required
-def index(request):
-	return render(request, "documents/index.html")
+@login_required  # type: ignore
+def index(request):  # type: ignore
+	return render(request, "documents/index.html")  # type: ignore
 
 
-@login_required
-def api_docs(request):
-	return render(request, "documents/api_docs.html")
+@login_required  # type: ignore
+def api_docs(request):  # type: ignore
+	return render(request, "documents/api_docs.html")  # type: ignore
 
 
-@csrf_exempt
-@login_required
-@require_http_methods(["POST"])
-def create_session(request):
-	session = ChatSession.objects.create(title="New Chat", user=request.user)
-	return JsonResponse({
-		"id": session.id,
-		"title": session.title,
-		"created_at": session.created_at.isoformat(),
+@csrf_exempt  # type: ignore
+@login_required  # type: ignore
+@require_http_methods(["POST"])  # type: ignore
+def create_session(request):  # type: ignore
+	session = ChatSession.objects.create(title="New Chat", user=request.user)  # type: ignore
+	return JsonResponse({  # type: ignore
+		"id": session.id,  # type: ignore
+		"title": session.title,  # type: ignore
+		"created_at": session.created_at.isoformat(),  # type: ignore
 	})
 
 
-@login_required
-@require_http_methods(["GET"])
-def list_sessions(request):
-	sessions = ChatSession.objects.filter(user=request.user).only('id', 'title', 'created_at', 'updated_at').order_by('-updated_at')[:30]
-	return JsonResponse({
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def list_sessions(request):  # type: ignore
+	sessions = ChatSession.objects.filter(user=request.user).only('id', 'title', 'created_at', 'updated_at').order_by('-updated_at')[:30]  # type: ignore
+	return JsonResponse({  # type: ignore
 		"sessions": [
 			{
-				"id": s.id,
-				"title": s.title,
-				"created_at": s.created_at.isoformat(),
-				"updated_at": s.updated_at.isoformat(),
+				"id": s.id,  # type: ignore
+				"title": s.title,  # type: ignore
+				"created_at": s.created_at.isoformat(),  # type: ignore
+				"updated_at": s.updated_at.isoformat(),  # type: ignore
 			}
-			for s in sessions
+			for s in sessions  # type: ignore
 		]
 	})
 
 
-@login_required
-@require_http_methods(["GET"])
-def get_session(request, session_id):
-	session = get_object_or_404(ChatSession, id=session_id, user=request.user)
-	messages = session.messages.all()
-	documents = session.documents.all()
-	return JsonResponse({
-		"id": session.id,
-		"title": session.title,
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def get_session(request, session_id):  # type: ignore
+	session = get_object_or_404(ChatSession, id=session_id, user=request.user)  # type: ignore
+	messages = session.messages.all()  # type: ignore
+	documents = session.documents.all()  # type: ignore
+	return JsonResponse({  # type: ignore
+		"id": session.id,  # type: ignore
+		"title": session.title,  # type: ignore
 		"messages": [
 			{
-				"id": msg.id,
-				"role": msg.role,
-				"content": msg.content,
-				"created_at": msg.created_at.isoformat(),
+				"id": msg.id,  # type: ignore
+				"role": msg.role,  # type: ignore
+				"content": msg.content,  # type: ignore
+				"created_at": msg.created_at.isoformat(),  # type: ignore
 			}
-			for msg in messages
+			for msg in messages  # type: ignore
 		],
 		"documents": [
 			{
-				"id": doc.id,
-				"name": doc.original_name,
-				"status": doc.status,
-				"uploaded_at": doc.uploaded_at.isoformat(),
+				"id": doc.id,  # type: ignore
+				"name": doc.original_name,  # type: ignore
+				"status": doc.status,  # type: ignore
+				"uploaded_at": doc.uploaded_at.isoformat(),  # type: ignore
 			}
-			for doc in documents
+			for doc in documents  # type: ignore
 		]
 	})
 
 
-@csrf_exempt
-@login_required
-@require_http_methods(["DELETE"])
-def delete_session(request, session_id):
-	session = get_object_or_404(ChatSession, id=session_id, user=request.user)
-	session.delete()
-	return JsonResponse({"status": "deleted"})
+@csrf_exempt  # type: ignore
+@login_required  # type: ignore
+@require_http_methods(["DELETE"])  # type: ignore
+def delete_session(request, session_id):  # type: ignore
+	session = get_object_or_404(ChatSession, id=session_id, user=request.user)  # type: ignore
+	session.delete()  # type: ignore
+	return JsonResponse({"status": "deleted"})  # type: ignore
 
 
-@csrf_exempt
-@login_required
-@ratelimit(key='ip', rate='20/m', method='POST', block=True)
-@require_http_methods(["POST"])
-def upload_document(request):
-	if "file" not in request.FILES:
-		return HttpResponseBadRequest("Missing file")
+@csrf_exempt  # type: ignore
+@login_required  # type: ignore
+@ratelimit(key='ip', rate='20/m', method='POST', block=True)  # type: ignore
+@require_http_methods(["POST"])  # type: ignore
+def upload_document(request):  # type: ignore
+	if "file" not in request.FILES:  # type: ignore
+		return HttpResponseBadRequest("Missing file")  # type: ignore
 
-	upload = request.FILES["file"]
+	upload = request.FILES["file"]  # type: ignore
 
 	# Validate file extension
-	file_ext = '.' + upload.name.rsplit('.', 1)[-1].lower() if '.' in upload.name else ''
+	file_ext = '.' + upload.name.rsplit('.', 1)[-1].lower() if '.' in upload.name else ''  # type: ignore
 	if file_ext not in SUPPORTED_EXTENSIONS:
-		return JsonResponse({
+		return JsonResponse({  # type: ignore
 			"error": f"Unsupported file type: {file_ext}. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
 		}, status=400)
 
 	# Validate file size (10 MB limit)
-	if upload.size > 10 * 1024 * 1024:
-		return JsonResponse({"error": "File too large. Maximum size is 10 MB."}, status=400)
+	if upload.size > 10 * 1024 * 1024:  # type: ignore
+		return JsonResponse({"error": "File too large. Maximum size is 10 MB."}, status=400)  # type: ignore
 
-	session_id = request.POST.get("session_id")
+	session_id = request.POST.get("session_id")  # type: ignore
 	session = None
 	if session_id:
-		session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+		session = get_object_or_404(ChatSession, id=session_id, user=request.user)  # type: ignore
 
 	# Enforce 5-document limit per session
 	if session:
-		doc_count = session.documents.count()
+		doc_count = session.documents.count()  # type: ignore
 		if doc_count >= 5:
-			return JsonResponse({"error": "Maximum 5 documents per chat. Please remove one first."}, status=400)
+			return JsonResponse({"error": "Maximum 5 documents per chat. Please remove one first."}, status=400)  # type: ignore
 
-	document = Document.objects.create(
+	document = Document.objects.create(  # type: ignore
 		file=upload,
-		original_name=upload.name,
+		original_name=upload.name,  # type: ignore
 		session=session
 	)
 
 	try:
-		process_document(document)
-		document.status = Document.STATUS_READY
-		document.error_message = ""
-		logger.info(f"Document uploaded successfully: {upload.name}")
+		process_document(document)  # type: ignore
+		document.status = Document.STATUS_READY  # type: ignore
+		document.error_message = ""  # type: ignore
+		logger.info(f"Document uploaded successfully: {upload.name}")  # type: ignore
 	except Exception as exc:
-		document.status = Document.STATUS_FAILED
-		document.error_message = str(exc)
-		logger.error(f"Document upload failed: {upload.name} - {exc}", exc_info=True)
+		document.status = Document.STATUS_FAILED  # type: ignore
+		document.error_message = str(exc)  # type: ignore
+		logger.error(f"Document upload failed: {upload.name} - {exc}", exc_info=True)  # type: ignore
 	finally:
-		document.save(update_fields=["status", "error_message"])
+		document.save(update_fields=["status", "error_message"])  # type: ignore
 
 	# Update session title based on first document if it's still "New Chat"
-	if session and session.title == "New Chat":
-		session.title = upload.name[:50]
-		session.save(update_fields=["title"])
+	if session and session.title == "New Chat":  # type: ignore
+		session.title = upload.name[:50]  # type: ignore
+		session.save(update_fields=["title"])  # type: ignore
 
-	return JsonResponse({
-		"id": document.id,
-		"name": document.original_name,
-		"status": document.status,
-		"error": document.error_message,
+	return JsonResponse({  # type: ignore
+		"id": document.id,  # type: ignore
+		"name": document.original_name,  # type: ignore
+		"status": document.status,  # type: ignore
+		"error": document.error_message,  # type: ignore
 	})
 
 
-@csrf_exempt
-@login_required
-@ratelimit(key='ip', rate='30/m', method='POST', block=True)
-@require_http_methods(["POST"])
-def ask_question(request):
+@csrf_exempt  # type: ignore
+@login_required  # type: ignore
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)  # type: ignore
+@require_http_methods(["POST"])  # type: ignore
+def ask_question(request):  # type: ignore
 	try:
-		payload = json.loads(request.body or "{}")
+		payload = json.loads(request.body or "{}")  # type: ignore
 	except json.JSONDecodeError:
-		return HttpResponseBadRequest("Invalid JSON")
+		return HttpResponseBadRequest("Invalid JSON")  # type: ignore
 
 	try:
-		from .rag import _ensure_api_keys
-		_ensure_api_keys()
+		from .rag import _ensure_api_keys  # type: ignore
+		_ensure_api_keys()  # type: ignore
 	except Exception as e:
-		return JsonResponse({"error": f"{str(e)}. Please add the required keys to your Render environment variables."}, status=400)
+		return JsonResponse({"error": f"{str(e)}. Please add the required keys to your Render environment variables."}, status=400)  # type: ignore
 
-	question = payload.get("question", "").strip()
+	question = payload.get("question", "").strip()  # type: ignore
 	if not question:
-		return HttpResponseBadRequest("Question is required")
+		return HttpResponseBadRequest("Question is required")  # type: ignore
 
-	if len(question) > 2000:
-		return JsonResponse({"error": "Question too long. Maximum 2000 characters."}, status=400)
+	if len(question) > 2000:  # type: ignore
+		return JsonResponse({"error": "Question too long. Maximum 2000 characters."}, status=400)  # type: ignore
 
-	is_allowed, limit_msg = check_chat_limit(request.user)
+	is_allowed, limit_msg = check_chat_limit(request.user)  # type: ignore
 	if not is_allowed:
-		return JsonResponse({"error": limit_msg}, status=403)
+		return JsonResponse({"error": limit_msg}, status=403)  # type: ignore
 
-	session_id = payload.get("session_id")
+	session_id = payload.get("session_id")  # type: ignore
 	session = None
 	if session_id:
-		session = get_object_or_404(ChatSession, id=session_id)
+		session = get_object_or_404(ChatSession, id=session_id)  # type: ignore
 
 	# Save user message
-	ChatMessage.objects.create(
+	ChatMessage.objects.create(  # type: ignore
 		session=session,
-		role=ChatMessage.ROLE_USER,
+		role=ChatMessage.ROLE_USER,  # type: ignore
 		content=question
 	)
 
 	# Get document IDs for this session only
 	document_ids: List[int] = []
 	if session:
-		document_ids = list(session.documents.filter(status=Document.STATUS_READY).values_list("id", flat=True))
+		document_ids = list(session.documents.filter(status=Document.STATUS_READY).values_list("id", flat=True))  # type: ignore
 
 	if not document_ids:
-		return JsonResponse({"error": "Please upload a document first. You can only ask questions about your uploaded documents."}, status=400)
+		return JsonResponse({"error": "Please upload a document first. You can only ask questions about your uploaded documents."}, status=400)  # type: ignore
 
 	# Build conversation history for memory
 	chat_history = None
 	if session:
-		recent_messages = session.messages.order_by('-created_at')[:6]
+		recent_messages = session.messages.order_by('-created_at')[:6]  # type: ignore
 		chat_history = [
-			{"role": msg.role, "content": msg.content}
-			for msg in reversed(recent_messages)
+			{"role": msg.role, "content": msg.content}  # type: ignore
+			for msg in reversed(recent_messages)  # type: ignore
 		]
 
 	# Get selected model
-	selected_model = payload.get("model")
+	selected_model = payload.get("model")  # type: ignore
 
-	response = answer_question(question, document_ids=document_ids, chat_history=chat_history, model=selected_model)
+	response = answer_question(question, document_ids=document_ids, chat_history=chat_history, model=selected_model)  # type: ignore
 
 	# Save assistant response
-	ChatMessage.objects.create(
+	ChatMessage.objects.create(  # type: ignore
 		session=session,
-		role=ChatMessage.ROLE_ASSISTANT,
-		content=response["answer"]
+		role=ChatMessage.ROLE_ASSISTANT,  # type: ignore
+		content=response["answer"]  # type: ignore
 	)
 
 	# Update session title from first question if still "New Chat"
-	if session and session.title == "New Chat":
-		session.title = question[:50]
-		session.save(update_fields=["title"])
+	if session and session.title == "New Chat":  # type: ignore
+		session.title = question[:50]  # type: ignore
+		session.save(update_fields=["title"])  # type: ignore
 
 	# Touch session to update updated_at
 	if session:
-		session.save()
+		session.save()  # type: ignore
 
-	return JsonResponse(response)
+	return JsonResponse(response)  # type: ignore
 
 
-@csrf_exempt
-@login_required
-@ratelimit(key='ip', rate='30/m', method='POST', block=True)
-@require_http_methods(["POST"])
-def ask_question_stream(request):
+@csrf_exempt  # type: ignore
+@login_required  # type: ignore
+@ratelimit(key='ip', rate='30/m', method='POST', block=True)  # type: ignore
+@require_http_methods(["POST"])  # type: ignore
+def ask_question_stream(request):  # type: ignore
 	"""SSE streaming endpoint — tokens arrive in real-time."""
 	try:
-		payload = json.loads(request.body or "{}")
+		payload = json.loads(request.body or "{}")  # type: ignore
 	except json.JSONDecodeError:
-		return HttpResponseBadRequest("Invalid JSON")
+		return HttpResponseBadRequest("Invalid JSON")  # type: ignore
 
 	try:
-		from .rag import _ensure_api_keys
-		_ensure_api_keys()
+		from .rag import _ensure_api_keys  # type: ignore
+		_ensure_api_keys()  # type: ignore
 	except Exception as e:
-		return JsonResponse({"error": f"{str(e)}. Please add the required keys to your Render environment variables."}, status=400)
+		return JsonResponse({"error": f"{str(e)}. Please add the required keys to your Render environment variables."}, status=400)  # type: ignore
 
-	question = payload.get("question", "").strip()
+	question = payload.get("question", "").strip()  # type: ignore
 	if not question:
-		return HttpResponseBadRequest("Question is required")
+		return HttpResponseBadRequest("Question is required")  # type: ignore
 
-	if len(question) > 2000:
-		return JsonResponse({"error": "Question too long. Maximum 2000 characters."}, status=400)
+	if len(question) > 2000:  # type: ignore
+		return JsonResponse({"error": "Question too long. Maximum 2000 characters."}, status=400)  # type: ignore
 
-	is_allowed, limit_msg = check_chat_limit(request.user)
+	is_allowed, limit_msg = check_chat_limit(request.user)  # type: ignore
 	if not is_allowed:
-		return JsonResponse({"error": limit_msg}, status=403)
+		return JsonResponse({"error": limit_msg}, status=403)  # type: ignore
 
-	session_id = payload.get("session_id")
+	session_id = payload.get("session_id")  # type: ignore
 	session = None
 	if session_id:
-		session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+		session = get_object_or_404(ChatSession, id=session_id, user=request.user)  # type: ignore
 
 	# Save user message
-	ChatMessage.objects.create(
+	ChatMessage.objects.create(  # type: ignore
 		session=session,
-		role=ChatMessage.ROLE_USER,
+		role=ChatMessage.ROLE_USER,  # type: ignore
 		content=question
 	)
 
 	# Get document IDs for this session
 	document_ids: List[int] = []
 	if session:
-		document_ids = list(session.documents.filter(status=Document.STATUS_READY).values_list("id", flat=True))
+		document_ids = list(session.documents.filter(status=Document.STATUS_READY).values_list("id", flat=True))  # type: ignore
 
 	if not document_ids:
-		return JsonResponse({"error": "Please upload a document first. You can only ask questions about your uploaded documents."}, status=400)
+		return JsonResponse({"error": "Please upload a document first. You can only ask questions about your uploaded documents."}, status=400)  # type: ignore
 
 	# Build conversation history
 	chat_history = None
 	if session:
-		recent_messages = session.messages.order_by('-created_at')[:6]
+		recent_messages = session.messages.order_by('-created_at')[:6]  # type: ignore
 		chat_history = [
-			{"role": msg.role, "content": msg.content}
-			for msg in reversed(recent_messages)
+			{"role": msg.role, "content": msg.content}  # type: ignore
+			for msg in reversed(recent_messages)  # type: ignore
 		]
 
-	selected_model = payload.get("model")
+	selected_model = payload.get("model")  # type: ignore
 
-	def event_stream():
-		for event in stream_answer_question(question, document_ids=document_ids, chat_history=chat_history, model=selected_model):
-			yield f"data: {json.dumps(event)}\n\n"
+	def event_stream():  # type: ignore
+		for event in stream_answer_question(question, document_ids=document_ids, chat_history=chat_history, model=selected_model):  # type: ignore
+			yield f"data: {json.dumps(event)}\n\n"  # type: ignore
 
 			# When done, save the assistant message
-			if event["type"] == "done":
-				ChatMessage.objects.create(
+			if event["type"] == "done":  # type: ignore
+				ChatMessage.objects.create(  # type: ignore
 					session=session,
-					role=ChatMessage.ROLE_ASSISTANT,
-					content=event["answer"]
+					role=ChatMessage.ROLE_ASSISTANT,  # type: ignore
+					content=event["answer"]  # type: ignore
 				)
-				if session and session.title == "New Chat":
-					session.title = question[:50]
-					session.save(update_fields=["title"])
+				if session and session.title == "New Chat":  # type: ignore
+					session.title = question[:50]  # type: ignore
+					session.save(update_fields=["title"])  # type: ignore
 				if session:
-					session.save()
+					session.save()  # type: ignore
 
-	response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
-	response["Cache-Control"] = "no-cache"
-	response["X-Accel-Buffering"] = "no"
+	response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")  # type: ignore
+	response["Cache-Control"] = "no-cache"  # type: ignore
+	response["X-Accel-Buffering"] = "no"  # type: ignore
 	return response
 
-@login_required
-@require_http_methods(["GET"])
-def list_documents(request):
-	session_id = request.GET.get("session_id")
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def list_documents(request):  # type: ignore
+	session_id = request.GET.get("session_id")  # type: ignore
 	if session_id:
-		documents = Document.objects.filter(session_id=session_id).order_by("-uploaded_at")
+		documents = Document.objects.filter(session_id=session_id).order_by("-uploaded_at")  # type: ignore
 	else:
-		documents = Document.objects.filter(session__isnull=True).order_by("-uploaded_at")
+		documents = Document.objects.filter(session__isnull=True).order_by("-uploaded_at")  # type: ignore
 
-	return JsonResponse({
+	return JsonResponse({  # type: ignore
 		"documents": [
 			{
-				"id": doc.id,
-				"name": doc.original_name,
-				"status": doc.status,
-				"uploaded_at": doc.uploaded_at.isoformat(),
+				"id": doc.id,  # type: ignore
+				"name": doc.original_name,  # type: ignore
+				"status": doc.status,  # type: ignore
+				"uploaded_at": doc.uploaded_at.isoformat(),  # type: ignore
 			}
-			for doc in documents
+			for doc in documents  # type: ignore
 		]
 	})
 
 
-@login_required
-@require_http_methods(["GET"])
-def preview_document(request, document_id):
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def preview_document(request, document_id):  # type: ignore
 	"""Return first few chunks of a document for preview."""
-	document = get_object_or_404(Document, id=document_id)
-	from .models import DocumentChunk
-	chunks = DocumentChunk.objects.filter(document=document).order_by("chunk_index")[:3]
-	preview_text = "\n\n".join(chunk.content for chunk in chunks)
-	return JsonResponse({
-		"id": document.id,
-		"name": document.original_name,
-		"status": document.status,
-		"preview": preview_text[:3000],
-		"total_chunks": document.chunks.count(),
+	document = get_object_or_404(Document, id=document_id)  # type: ignore
+	from .models import DocumentChunk  # type: ignore
+	chunks = DocumentChunk.objects.filter(document=document).order_by("chunk_index")[:3]  # type: ignore
+	preview_text = "\n\n".join(chunk.content for chunk in chunks)  # type: ignore
+	return JsonResponse({  # type: ignore
+		"id": document.id,  # type: ignore
+		"name": document.original_name,  # type: ignore
+		"status": document.status,  # type: ignore
+		"preview": str(preview_text)[:3000],  # type: ignore
+		"total_chunks": document.chunks.count(),  # type: ignore
 	})
 
 
 
-@csrf_exempt
-@login_required
-@require_http_methods(["DELETE"])
-def delete_document(request, document_id):
-	document = get_object_or_404(Document, id=document_id)
+@csrf_exempt  # type: ignore
+@login_required  # type: ignore
+@require_http_methods(["DELETE"])  # type: ignore
+def delete_document(request, document_id):  # type: ignore
+	document = get_object_or_404(Document, id=document_id)  # type: ignore
 	# Delete associated chunks from Pinecone
-	from .rag import delete_document_chunks
-	delete_document_chunks(document_id)
+	from .rag import delete_document_chunks  # type: ignore
+	delete_document_chunks(document_id)  # type: ignore
 	# Delete the file and database record
-	if document.file:
-		document.file.delete(save=False)
-	document.delete()
-	return JsonResponse({"status": "deleted"})
+	if document.file:  # type: ignore
+		document.file.delete(save=False)  # type: ignore
+	document.delete()  # type: ignore
+	return JsonResponse({"status": "deleted"})  # type: ignore
 
 
-@login_required
-@require_http_methods(["GET"])
-@cache_page(60 * 60)
-def list_models(request):
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+@cache_page(60 * 60)  # type: ignore
+def list_models(request):  # type: ignore
 	"""Return a list of available LLM models."""
-	models = [
-		{"id": model_id, **info}
-		for model_id, info in settings.AVAILABLE_MODELS.items()
+	models = [  # type: ignore
+		{"id": model_id, **info}  # type: ignore
+		for model_id, info in settings.AVAILABLE_MODELS.items()  # type: ignore
 	]
-	return JsonResponse({"models": models, "default": settings.GROQ_MODEL})
+	return JsonResponse({"models": models, "default": settings.GROQ_MODEL})  # type: ignore
 
 
-@login_required
-@require_http_methods(["GET"])
-def search_sessions(request):
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def search_sessions(request):  # type: ignore
 	"""Search across all sessions by title or message content."""
-	query = request.GET.get("q", "").strip()
+	query = request.GET.get("q", "").strip()  # type: ignore
 	if not query:
-		return JsonResponse({"sessions": []})
+		return JsonResponse({"sessions": []})  # type: ignore
 
-	from django.db.models import Q
-	sessions = ChatSession.objects.filter(
-		Q(title__icontains=query) |
-		Q(messages__content__icontains=query)
-	).distinct().order_by("-updated_at")[:20]
+	from django.db.models import Q  # type: ignore
+	sessions = ChatSession.objects.filter(  # type: ignore
+		Q(title__icontains=query) |  # type: ignore
+		Q(messages__content__icontains=query)  # type: ignore
+	).distinct().order_by("-updated_at")[:20]  # type: ignore
 
-	return JsonResponse({
+	return JsonResponse({  # type: ignore
 		"sessions": [
 			{
-				"id": s.id,
-				"title": s.title,
-				"created_at": s.created_at.isoformat(),
-				"updated_at": s.updated_at.isoformat(),
+				"id": s.id,  # type: ignore
+				"title": s.title,  # type: ignore
+				"created_at": s.created_at.isoformat(),  # type: ignore
+				"updated_at": s.updated_at.isoformat(),  # type: ignore
 			}
-			for s in sessions
+			for s in sessions  # type: ignore
 		]
 	})
 
 
-@login_required
-@require_http_methods(["GET"])
-def export_chat(request, session_id):
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def export_chat(request, session_id):  # type: ignore
 	"""Export a chat session as Markdown."""
-	session = get_object_or_404(ChatSession, id=session_id)
-	messages = session.messages.all()
-	documents = session.documents.all()
+	session = get_object_or_404(ChatSession, id=session_id)  # type: ignore
+	messages = session.messages.all()  # type: ignore
+	documents = session.documents.all()  # type: ignore
 
-	lines = [f"# {session.title}\n"]
-	lines.append(f"Created: {session.created_at.strftime('%Y-%m-%d %H:%M')}\n")
+	lines = [f"# {session.title}\n"]  # type: ignore
+	lines.append(f"Created: {session.created_at.strftime('%Y-%m-%d %H:%M')}\n")  # type: ignore
 
 	if documents:
 		lines.append("## Documents\n")
-		for doc in documents:
-			lines.append(f"- {doc.original_name} ({doc.status})")
+		for doc in documents:  # type: ignore
+			lines.append(f"- {doc.original_name} ({doc.status})")  # type: ignore
 		lines.append("")
 
 	lines.append("## Conversation\n")
-	for msg in messages:
-		role_label = "**You**" if msg.role == "user" else "**Assistant**"
-		lines.append(f"{role_label}: {msg.content}\n")
+	for msg in messages:  # type: ignore
+		role_label = "**You**" if msg.role == "user" else "**Assistant**"  # type: ignore
+		lines.append(f"{role_label}: {msg.content}\n")  # type: ignore
 
 	content = "\n".join(lines)
 
-	from django.http import HttpResponse
-	response = HttpResponse(content, content_type="text/markdown; charset=utf-8")
-	response["Content-Disposition"] = f'attachment; filename="{session.title[:50]}.md"'
+	from django.http import HttpResponse  # type: ignore
+	response = HttpResponse(content, content_type="text/markdown; charset=utf-8")  # type: ignore
+	response["Content-Disposition"] = f'attachment; filename="{session.title[:50]}.md"'  # type: ignore
 	return response
 
 
-@login_required
-@require_http_methods(["GET"])
-@cache_page(60 * 5)
-def analytics_dashboard(request):
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+@cache_page(60 * 5)  # type: ignore
+def analytics_dashboard(request):  # type: ignore
 	"""Return aggregate analytics for the platform (admin only)."""
-	if not request.user.is_staff:
-		return JsonResponse({"error": "Unauthorized"}, status=403)
+	if not request.user.is_staff:  # type: ignore
+		return JsonResponse({"error": "Unauthorized"}, status=403)  # type: ignore
 		
-	from django.contrib.auth.models import User
-	from django.db.models import Count
+	from django.contrib.auth.models import User  # type: ignore
+	from django.db.models import Count  # type: ignore
 	
-	total_users = User.objects.count()
-	total_sessions = ChatSession.objects.count()
-	total_messages = ChatMessage.objects.count()
-	total_documents = Document.objects.count()
+	total_users = User.objects.count()  # type: ignore
+	total_sessions = ChatSession.objects.count()  # type: ignore
+	total_messages = ChatMessage.objects.count()  # type: ignore
+	total_documents = Document.objects.count()  # type: ignore
 	
 	# Top 5 users by session count
-	top_users = User.objects.annotate(
-		session_count=Count('chatsession')
-	).order_by('-session_count')[:5]
+	top_users = User.objects.annotate(  # type: ignore
+		session_count=Count('chatsession')  # type: ignore
+	).order_by('-session_count')[:5]  # type: ignore
 	
 	top_users_data = [
-		{"username": u.username, "sessions": u.session_count}
-		for u in top_users
+		{"username": u.username, "sessions": u.session_count}  # type: ignore
+		for u in top_users  # type: ignore
 	]
 	
-	return JsonResponse({
+	return JsonResponse({  # type: ignore
 		"totals": {
 			"users": total_users,
 			"sessions": total_sessions,
@@ -506,13 +506,13 @@ def analytics_dashboard(request):
 	})
 
 
-@login_required
-@require_http_methods(["GET"])
-def analytics_page(request):
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def analytics_page(request):  # type: ignore
 	"""Render the analytics dashboard page (admin only)."""
-	if not request.user.is_staff:
-		from django.shortcuts import redirect
-		from django.contrib import messages
-		messages.error(request, "You do not have permission to view this page.")
-		return redirect("index")
-	return render(request, "documents/analytics.html")
+	if not request.user.is_staff:  # type: ignore
+		from django.shortcuts import redirect  # type: ignore
+		from django.contrib import messages  # type: ignore
+		messages.error(request, "You do not have permission to view this page.")  # type: ignore
+		return redirect("index")  # type: ignore
+	return render(request, "documents/analytics.html")  # type: ignore

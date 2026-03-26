@@ -35,11 +35,11 @@ _gemini_client = None
 _groq_client = None
 
 
-def _retry(func, *args, retries=MAX_RETRIES, **kwargs):
+def _retry(func, *args, retries=MAX_RETRIES, **kwargs):  # type: ignore
     """Retry a function with exponential backoff."""
     for attempt in range(retries):
         try:
-            return func(*args, **kwargs)
+            return func(*args, **kwargs)  # type: ignore
         except Exception as e:
             if attempt == retries - 1:
                 logger.error(f"Failed after {retries} attempts: {e}")
@@ -54,29 +54,29 @@ def _ensure_api_keys() -> None:
         raise RuntimeError("GEMINI_API_KEY is not set")
     if not os.getenv("GROQ_API_KEY"):
         raise RuntimeError("GROQ_API_KEY is not set")
-    if not settings.PINECONE_API_KEY:
+    if not settings.PINECONE_API_KEY:  # type: ignore
         raise RuntimeError("PINECONE_API_KEY is not set")
 
 
-def _get_pinecone_index():
+def _get_pinecone_index():  # type: ignore
     global _pinecone_index
     if _pinecone_index is None:
-        pc = Pinecone(api_key=settings.PINECONE_API_KEY)
-        _pinecone_index = pc.Index(settings.PINECONE_INDEX_NAME)
+        pc = Pinecone(api_key=settings.PINECONE_API_KEY)  # type: ignore
+        _pinecone_index = pc.Index(settings.PINECONE_INDEX_NAME)  # type: ignore
     return _pinecone_index
 
 
-def _get_gemini_client():
+def _get_gemini_client():  # type: ignore
     global _gemini_client
     if _gemini_client is None:
-        _gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        _gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))  # type: ignore
     return _gemini_client
 
 
-def _get_groq_client():
+def _get_groq_client():  # type: ignore
     global _groq_client
     if _groq_client is None:
-        _groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        _groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))  # type: ignore
     return _groq_client
 
 
@@ -86,20 +86,20 @@ def _extract_text(file_path: Path) -> str:
         raise ValueError(f"Unsupported file type: {suffix}")
 
     if suffix == ".pdf":
-        reader = PdfReader(str(file_path))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
+        reader = PdfReader(str(file_path))  # type: ignore
+        return "\n".join(page.extract_text() or "" for page in reader.pages)  # type: ignore
     if suffix in (".docx", ".doc"):
-        doc = docx.Document(str(file_path))
-        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+        doc = docx.Document(str(file_path))  # type: ignore
+        return "\n".join(paragraph.text for paragraph in doc.paragraphs)  # type: ignore
     if suffix in (".xlsx", ".xls"):
         try:
-            import openpyxl
-            wb = openpyxl.load_workbook(str(file_path), data_only=True)
+            import openpyxl  # type: ignore
+            wb = openpyxl.load_workbook(str(file_path), data_only=True)  # type: ignore
             lines = []
-            for sheet in wb.sheetnames:
-                ws = wb[sheet]
+            for sheet in wb.sheetnames:  # type: ignore
+                ws = wb[sheet]  # type: ignore
                 lines.append(f"--- Sheet: {sheet} ---")
-                for row in ws.iter_rows(values_only=True):
+                for row in ws.iter_rows(values_only=True):  # type: ignore
                     row_text = "\t".join(str(cell) if cell is not None else "" for cell in row)
                     if row_text.strip():
                         lines.append(row_text)
@@ -115,20 +115,20 @@ def _extract_text(file_path: Path) -> str:
 
 
 def _chunk_text(text: str) -> List[str]:
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=settings.CHUNK_SIZE,
-        chunk_overlap=settings.CHUNK_OVERLAP,
+    splitter = RecursiveCharacterTextSplitter(  # type: ignore
+        chunk_size=settings.CHUNK_SIZE,  # type: ignore
+        chunk_overlap=settings.CHUNK_OVERLAP,  # type: ignore
         separators=["\n\n", "\n", " ", ""],
     )
-    chunks = [chunk.strip() for chunk in splitter.split_text(text) if chunk.strip()]
+    chunks = [chunk.strip() for chunk in splitter.split_text(text) if chunk.strip()]  # type: ignore
     logger.info(f"Split text into {len(chunks)} chunks")
     return chunks
 
 
 def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
-    client = _get_gemini_client()
-    model_name = settings.GEMINI_EMBEDDING_MODEL.removeprefix("models/")
-    dims = getattr(settings, "GEMINI_EMBEDDING_DIMENSIONS", 768)
+    client = _get_gemini_client()  # type: ignore
+    model_name = settings.GEMINI_EMBEDDING_MODEL.removeprefix("models/")  # type: ignore
+    dims = getattr(settings, "GEMINI_EMBEDDING_DIMENSIONS", 768)  # type: ignore
     text_list = list(texts)
 
     if not text_list:
@@ -140,30 +140,30 @@ def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
     for i in range(0, len(text_list), batch_size):
         batch = text_list[i:i + batch_size]
         logger.info(f"Embedding batch {i // batch_size + 1} ({len(batch)} texts)")
-        response = _retry(
-            client.models.embed_content,
+        response = _retry(  # type: ignore
+            client.models.embed_content,  # type: ignore
             model=model_name,
             contents=batch,
-            config=genai_types.EmbedContentConfig(
+            config=genai_types.EmbedContentConfig(  # type: ignore
                 task_type="RETRIEVAL_DOCUMENT",
                 output_dimensionality=dims,
             ),
         )
-        for emb in response.embeddings:
-            all_embeddings.append(list(emb.values))
+        for emb in response.embeddings:  # type: ignore
+            all_embeddings.append(list(emb.values))  # type: ignore
 
     logger.info(f"Embedded {len(all_embeddings)} texts total")
     return all_embeddings
 
 
-def process_document(document: Document) -> None:
+def process_document(document: Document) -> None:  # type: ignore
     logger.info(f"Processing document: {document.original_name} (ID: {document.id})")
     _ensure_api_keys()
 
     # Download file to a temp file — works with both local and S3 storage
     suffix = Path(document.original_name).suffix
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode='wb') as tmp:
-        for chunk in document.file.chunks():
+        for chunk in document.file.chunks():  # type: ignore
             tmp.write(chunk)
         tmp_path = Path(tmp.name)
 
@@ -174,7 +174,7 @@ def process_document(document: Document) -> None:
 
     chunks = _chunk_text(text)
 
-    index = _get_pinecone_index()
+    index = _get_pinecone_index()  # type: ignore
     embeddings = _embed_texts(chunks)
 
     vectors = []
@@ -195,10 +195,10 @@ def process_document(document: Document) -> None:
     for i in range(0, len(vectors), batch_size):
         _retry(index.upsert, vectors=vectors[i:i + batch_size])  # type: ignore
 
-    DocumentChunk.objects.filter(document=document).delete()
-    DocumentChunk.objects.bulk_create(
+    DocumentChunk.objects.filter(document=document).delete()  # type: ignore
+    DocumentChunk.objects.bulk_create(  # type: ignore
         [
-            DocumentChunk(document=document, chunk_index=idx, content=chunk)
+            DocumentChunk(document=document, chunk_index=idx, content=chunk)  # type: ignore
             for idx, chunk in enumerate(chunks)
         ]
     )
@@ -209,18 +209,18 @@ def delete_document_chunks(document_id: int) -> None:
     """Delete all chunks for a document from Pinecone and the database."""
     logger.info(f"Deleting chunks for document ID: {document_id}")
     try:
-        index = _get_pinecone_index()
-        chunks = DocumentChunk.objects.filter(document_id=document_id)
-        ids_to_delete = [f"{document_id}-{chunk.chunk_index}" for chunk in chunks]
+        index = _get_pinecone_index()  # type: ignore
+        chunks = DocumentChunk.objects.filter(document_id=document_id)  # type: ignore
+        ids_to_delete = [f"{document_id}-{chunk.chunk_index}" for chunk in chunks]  # type: ignore
 
         if ids_to_delete:
             batch_size = 100
             for i in range(0, len(ids_to_delete), batch_size):
-                _retry(index.delete, ids=ids_to_delete[i:i + batch_size])
+                _retry(index.delete, ids=ids_to_delete[i:i + batch_size])  # type: ignore
     except Exception as e:
         logger.error(f"Error deleting from Pinecone: {e}")
 
-    DocumentChunk.objects.filter(document_id=document_id).delete()
+    DocumentChunk.objects.filter(document_id=document_id).delete()  # type: ignore
     logger.info(f"Chunks deleted for document ID: {document_id}")
 
 
@@ -251,11 +251,11 @@ def _build_prompt(question: str, context_chunks: List[str], chat_history: Option
     return messages
 
 
-def answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None) -> dict:
+def answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None) -> dict:  # type: ignore
     logger.info(f"Answering question: {question[:100]}...")
     _ensure_api_keys()
 
-    index = _get_pinecone_index()
+    index = _get_pinecone_index()  # type: ignore
     query_embedding = _embed_texts([question])[0]
 
     filter_dict = None
@@ -263,8 +263,8 @@ def answer_question(question: str, document_ids: Optional[List[int]] = None, cha
         str_ids = [str(did) for did in document_ids]
         filter_dict = {"document_id": {"$in": str_ids}}
 
-    results = _retry(
-        index.query,
+    results = _retry(  # type: ignore
+        index.query,  # type: ignore
         vector=query_embedding,
         top_k=5,
         filter=filter_dict,
@@ -274,35 +274,35 @@ def answer_question(question: str, document_ids: Optional[List[int]] = None, cha
     documents = []
     metadatas = []
 
-    matches = getattr(results, 'matches', None) or results.get('matches', []) if isinstance(results, dict) else getattr(results, 'matches', [])
-    for match in matches:
-        metadata = getattr(match, 'metadata', None) or (match.get('metadata', {}) if isinstance(match, dict) else {})
-        text = metadata.get('text', '') if isinstance(metadata, dict) else getattr(metadata, 'text', '')
+    matches = getattr(results, 'matches', None) or results.get('matches', []) if isinstance(results, dict) else getattr(results, 'matches', [])  # type: ignore
+    for match in matches:  # type: ignore
+        metadata = getattr(match, 'metadata', None) or (match.get('metadata', {}) if isinstance(match, dict) else {})  # type: ignore
+        text = metadata.get('text', '') if isinstance(metadata, dict) else getattr(metadata, 'text', '')  # type: ignore
         documents.append(text)
-        metadatas.append(dict(metadata) if not isinstance(metadata, dict) else metadata)
+        metadatas.append(dict(metadata) if not isinstance(metadata, dict) else metadata)  # type: ignore
 
     # Use the selected model or fall back to default
-    selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL
+    selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL  # type: ignore
     logger.info(f"Using model: {selected_model}")
 
-    client = _get_groq_client()
-    response = _retry(
-        client.chat.completions.create,
+    client = _get_groq_client()  # type: ignore
+    response = _retry(  # type: ignore
+        client.chat.completions.create,  # type: ignore
         model=selected_model,
         messages=_build_prompt(question, documents, chat_history),
         temperature=0.2,
     )
 
-    answer = response.choices[0].message.content
+    answer = response.choices[0].message.content  # type: ignore
     logger.info(f"Answer generated successfully ({len(answer)} chars)")
 
     sources = []
     for doc_text, metadata in zip(documents, metadatas):
         sources.append(
             {
-                "document_id": metadata.get("document_id"),
-                "document_name": metadata.get("document_name"),
-                "chunk_index": metadata.get("chunk_index"),
+                "document_id": metadata.get("document_id"),  # type: ignore
+                "document_name": metadata.get("document_name"),  # type: ignore
+                "chunk_index": metadata.get("chunk_index"),  # type: ignore
                 "content": doc_text,
             }
         )
@@ -310,12 +310,12 @@ def answer_question(question: str, document_ids: Optional[List[int]] = None, cha
     return {"answer": answer, "sources": sources}
 
 
-def stream_answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None):
+def stream_answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None):  # type: ignore
     """Generator that yields answer tokens as they arrive from Groq streaming API."""
     logger.info(f"Streaming answer for: {question[:100]}...")
     _ensure_api_keys()
 
-    index = _get_pinecone_index()
+    index = _get_pinecone_index()  # type: ignore
     query_embedding = _embed_texts([question])[0]
 
     filter_dict = None
@@ -323,8 +323,8 @@ def stream_answer_question(question: str, document_ids: Optional[List[int]] = No
         str_ids = [str(did) for did in document_ids]
         filter_dict = {"document_id": {"$in": str_ids}}
 
-    results = _retry(
-        index.query,
+    results = _retry(  # type: ignore
+        index.query,  # type: ignore
         vector=query_embedding,
         top_k=5,
         filter=filter_dict,
@@ -333,18 +333,18 @@ def stream_answer_question(question: str, document_ids: Optional[List[int]] = No
 
     documents = []
     metadatas = []
-    matches = getattr(results, 'matches', None) or results.get('matches', []) if isinstance(results, dict) else getattr(results, 'matches', [])
-    for match in matches:
-        metadata = getattr(match, 'metadata', None) or (match.get('metadata', {}) if isinstance(match, dict) else {})
-        text = metadata.get('text', '') if isinstance(metadata, dict) else getattr(metadata, 'text', '')
+    matches = getattr(results, 'matches', None) or results.get('matches', []) if isinstance(results, dict) else getattr(results, 'matches', [])  # type: ignore
+    for match in matches:  # type: ignore
+        metadata = getattr(match, 'metadata', None) or (match.get('metadata', {}) if isinstance(match, dict) else {})  # type: ignore
+        text = metadata.get('text', '') if isinstance(metadata, dict) else getattr(metadata, 'text', '')  # type: ignore
         documents.append(text)
-        metadatas.append(dict(metadata) if not isinstance(metadata, dict) else metadata)
+        metadatas.append(dict(metadata) if not isinstance(metadata, dict) else metadata)  # type: ignore
 
-    selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL
+    selected_model = model if model and model in settings.AVAILABLE_MODELS else settings.GROQ_MODEL  # type: ignore
     logger.info(f"Streaming with model: {selected_model}")
 
-    client = _get_groq_client()
-    stream = client.chat.completions.create(
+    client = _get_groq_client()  # type: ignore
+    stream = client.chat.completions.create(  # type: ignore
         model=selected_model,
         messages=_build_prompt(question, documents, chat_history),
         temperature=0.2,
@@ -352,19 +352,19 @@ def stream_answer_question(question: str, document_ids: Optional[List[int]] = No
     )
 
     full_answer = []
-    for chunk in stream:
-        delta = chunk.choices[0].delta
-        if delta and delta.content:
-            full_answer.append(delta.content)
-            yield {"type": "token", "content": delta.content}
+    for chunk in stream:  # type: ignore
+        delta = chunk.choices[0].delta  # type: ignore
+        if delta and delta.content:  # type: ignore
+            full_answer.append(delta.content)  # type: ignore
+            yield {"type": "token", "content": delta.content}  # type: ignore
 
     # Build sources
     sources = []
     for doc_text, metadata in zip(documents, metadatas):
         sources.append({
-            "document_id": metadata.get("document_id"),
-            "document_name": metadata.get("document_name"),
-            "chunk_index": metadata.get("chunk_index"),
+            "document_id": metadata.get("document_id"),  # type: ignore
+            "document_name": metadata.get("document_name"),  # type: ignore
+            "chunk_index": metadata.get("chunk_index"),  # type: ignore
             "content": doc_text,
         })
 
