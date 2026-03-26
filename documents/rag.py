@@ -138,7 +138,7 @@ def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
     all_embeddings: List[List[float]] = []
     batch_size = 100
     for i in range(0, len(text_list), batch_size):
-        batch = text_list[i:i + batch_size]
+        batch = list(text_list)[i:i + batch_size]  # type: ignore
         logger.info(f"Embedding batch {i // batch_size + 1} ({len(batch)} texts)")
         response = _retry(  # type: ignore
             client.models.embed_content,  # type: ignore
@@ -243,7 +243,8 @@ def _build_prompt(question: str, context_chunks: List[str], chat_history: Option
     messages = [{"role": "system", "content": system_prompt}]
 
     if chat_history:
-        for msg in chat_history[-6:]:
+        recent = list(chat_history)[-6:]  # type: ignore
+        for msg in recent:
             messages.append({"role": msg["role"], "content": msg["content"]})
 
     user_prompt = f"Document Context:\n{context_text}\n\nQuestion: {question}"
@@ -252,7 +253,7 @@ def _build_prompt(question: str, context_chunks: List[str], chat_history: Option
 
 
 def answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None) -> dict:  # type: ignore
-    logger.info(f"Answering question: {question[:100]}...")
+    logger.info("Answering question: %s...", question[:100])  # type: ignore
     _ensure_api_keys()
 
     index = _get_pinecone_index()  # type: ignore
@@ -312,7 +313,7 @@ def answer_question(question: str, document_ids: Optional[List[int]] = None, cha
 
 def stream_answer_question(question: str, document_ids: Optional[List[int]] = None, chat_history: Optional[List[dict]] = None, model: Optional[str] = None):  # type: ignore
     """Generator that yields answer tokens as they arrive from Groq streaming API."""
-    logger.info(f"Streaming answer for: {question[:100]}...")
+    logger.info("Streaming answer for: %s...", question[:100])  # type: ignore
     _ensure_api_keys()
 
     index = _get_pinecone_index()  # type: ignore
