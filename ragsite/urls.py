@@ -1,23 +1,34 @@
 """
 URL configuration for ragsite project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+import traceback
+import sys
+
+
+def handler500_json(request):
+    """Return JSON error for API requests, HTML for normal pages."""
+    exc_info = sys.exc_info()
+    error_detail = ""
+    if exc_info[1]:
+        error_detail = f"{exc_info[0].__name__}: {exc_info[1]}"
+    
+    if request.path.startswith("/api/"):
+        return JsonResponse({
+            "error": f"Internal server error: {error_detail}",
+            "traceback": traceback.format_exception(*exc_info) if exc_info[1] else []
+        }, status=500)
+    
+    from django.views.defaults import server_error
+    return server_error(request)
+
+
+handler500 = 'ragsite.urls.handler500_json'
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
