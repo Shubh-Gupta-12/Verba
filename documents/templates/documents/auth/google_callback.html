@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signing in...</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #020617;
+            color: #f8fafc;
+        }
+        .loading {
+            text-align: center;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(99, 102, 241, 0.2);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { color: #ef4444; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="loading">
+        <div class="spinner"></div>
+        <p id="status">Completing sign-in...</p>
+        <p id="error" class="error" style="display:none;"></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        (async () => {
+            const SUPABASE_URL = '{{ SUPABASE_URL }}';
+            const SUPABASE_ANON_KEY = '{{ SUPABASE_ANON_KEY }}';
+            const csrfToken = '{{ csrf_token }}';
+
+            try {
+                const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                // Supabase puts tokens in the URL hash after OAuth redirect
+                const { data: { session }, error } = await sb.auth.getSession();
+
+                if (error || !session) {
+                    throw new Error(error?.message || 'No session found. Please try again.');
+                }
+
+                const user = session.user;
+                const email = user.email;
+                const fullName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+
+                // POST to Django to create/login the user
+                const res = await fetch('/auth/google/callback/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        full_name: fullName,
+                        access_token: session.access_token,
+                    }),
+                });
+
+                if (res.ok) {
+                    window.location.href = '/';
+                } else {
+                    const data = await res.json();
+                    throw new Error(data.error || 'Failed to sign in');
+                }
+            } catch (err) {
+                document.getElementById('status').textContent = 'Sign-in failed';
+                document.getElementById('error').textContent = err.message;
+                document.getElementById('error').style.display = 'block';
+                setTimeout(() => { window.location.href = '/login/'; }, 3000);
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -8,6 +8,7 @@ urlpatterns = [
     path("login/", auth_views.login_view, name="login"),
     path("register/", auth_views.register_view, name="register"),
     path("logout/", auth_views.logout_view, name="logout"),
+    path("auth/google/callback/", auth_views.google_callback_view, name="google_callback"),
     # App routes
     path("", views.index, name="index"),
     path("api/docs/", views.api_docs, name="api_docs"),
