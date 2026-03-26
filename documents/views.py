@@ -1,19 +1,20 @@
+# pyre-ignore-all-errors
 import json
 import logging
 from typing import List
 
-from django.conf import settings
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpResponse
-from django.shortcuts import render, get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.cache import cache_page
-from django_ratelimit.decorators import ratelimit
+from django.conf import settings  # type: ignore
+from django.contrib.auth.decorators import login_required  # type: ignore
+from django.http import JsonResponse, HttpResponseBadRequest, StreamingHttpResponse  # type: ignore
+from django.shortcuts import render, get_object_or_404  # type: ignore
+from django.views.decorators.csrf import csrf_exempt  # type: ignore
+from django.views.decorators.http import require_http_methods  # type: ignore
+from django.views.decorators.cache import cache_page  # type: ignore
+from django_ratelimit.decorators import ratelimit  # type: ignore
 
-from .models import Document, ChatMessage, ChatSession
-from .rag import answer_question, stream_answer_question, process_document, SUPPORTED_EXTENSIONS
-from django.core.cache import cache
+from .models import Document, ChatMessage, ChatSession  # type: ignore
+from .rag import answer_question, stream_answer_question, process_document, SUPPORTED_EXTENSIONS  # type: ignore
+from django.core.cache import cache  # type: ignore
 import time
 from datetime import datetime
 

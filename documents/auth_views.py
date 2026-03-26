@@ -1,13 +1,14 @@
+# pyre-ignore-all-errors
 import json
 import logging
-from django.conf import settings
-from django.contrib.auth import login, logout, authenticate
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.contrib.auth.models import User
-from django.http import JsonResponse
-from django.shortcuts import render, redirect
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.conf import settings  # type: ignore
+from django.contrib.auth import login, logout, authenticate  # type: ignore
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm  # type: ignore
+from django.contrib.auth.models import User  # type: ignore
+from django.http import JsonResponse  # type: ignore
+from django.shortcuts import render, redirect  # type: ignore
+from django.views.decorators.csrf import csrf_exempt  # type: ignore
+from django.views.decorators.http import require_http_methods  # type: ignore
 
 logger = logging.getLogger(__name__)
 

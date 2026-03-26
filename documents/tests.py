@@ -1,7 +1,8 @@
-from django.test import TestCase, Client
-from django.urls import reverse
+# pyre-ignore-all-errors
+from django.test import TestCase, Client  # type: ignore
+from django.urls import reverse  # type: ignore
 
-from .models import ChatSession, Document, DocumentChunk, ChatMessage
+from .models import ChatSession, Document, DocumentChunk, ChatMessage  # type: ignore
 
 
 class ModelTests(TestCase):

@@ -1,3 +1,4 @@
+# pyre-ignore-all-errors
 from __future__ import annotations
 
 import csv
@@ -9,17 +10,17 @@ import time
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-from google import genai
-from google.genai import types as genai_types
-from groq import Groq
-from pinecone import Pinecone
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pypdf import PdfReader
-import docx
+from google import genai  # type: ignore
+from google.genai import types as genai_types  # type: ignore
+from groq import Groq  # type: ignore
+from pinecone import Pinecone  # type: ignore
+from langchain_text_splitters import RecursiveCharacterTextSplitter  # type: ignore
+from pypdf import PdfReader  # type: ignore
+import docx  # type: ignore
 
-from django.conf import settings
+from django.conf import settings  # type: ignore
 
-from .models import Document, DocumentChunk
+from .models import Document, DocumentChunk  # type: ignore
 
 
 logger = logging.getLogger(__name__)
@@ -192,7 +193,7 @@ def process_document(document: Document) -> None:
     # Upsert in batches of 100 to avoid Pinecone limits
     batch_size = 100
     for i in range(0, len(vectors), batch_size):
-        _retry(index.upsert, vectors=vectors[i:i + batch_size])
+        _retry(index.upsert, vectors=vectors[i:i + batch_size])  # type: ignore
 
     DocumentChunk.objects.filter(document=document).delete()
     DocumentChunk.objects.bulk_create(

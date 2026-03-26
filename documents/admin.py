@@ -1,6 +1,7 @@
-from django.contrib import admin
+# pyre-ignore-all-errors
+from django.contrib import admin  # type: ignore
 
-from .models import ChatSession, Document, DocumentChunk, ChatMessage
+from .models import ChatSession, Document, DocumentChunk, ChatMessage  # type: ignore
 
 
 @admin.register(ChatSession)

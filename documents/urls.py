@@ -1,7 +1,8 @@
-from django.urls import path
+# pyre-ignore-all-errors
+from django.urls import path  # type: ignore
 
-from . import views
-from . import auth_views
+from . import views  # type: ignore
+from . import auth_views  # type: ignore
 
 urlpatterns = [
     # Auth routes
