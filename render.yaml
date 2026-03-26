@@ -22,4 +22,16 @@ services:
       - key: DJANGO_ALLOWED_HOSTS
         value: ".onrender.com"
       - key: CSRF_TRUSTED_ORIGINS
-        value: "https://verba.onrender.com"
+        value: "https://verba-6s5h.onrender.com"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_URL
+        sync: false
+      - key: SUPABASE_STORAGE_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_SECRET
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: "verba-uploads"
