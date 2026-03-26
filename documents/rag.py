@@ -134,10 +134,22 @@ def _embed_texts(texts: Iterable[str]) -> List[List[float]]:
 
 
 def process_document(document: Document) -> None:
+    import tempfile
     logger.info(f"Processing document: {document.original_name} (ID: {document.id})")
     _ensure_api_keys()
-    file_path = Path(document.file.path)
-    text = _extract_text(file_path)
+
+    # Download file to a temp file — works with both local and S3 storage
+    suffix = Path(document.original_name).suffix
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False, mode='wb') as tmp:
+        for chunk in document.file.chunks():
+            tmp.write(chunk)
+        tmp_path = Path(tmp.name)
+
+    try:
+        text = _extract_text(tmp_path)
+    finally:
+        tmp_path.unlink(missing_ok=True)  # Clean up temp file
+
     chunks = _chunk_text(text)
 
     index = _get_pinecone_index()
