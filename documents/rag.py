@@ -80,14 +80,74 @@ def _get_groq_client():  # type: ignore
     return _groq_client
 
 
+def _extract_pdf_with_gemini(file_path: Path) -> str:
+    """Use Gemini Vision API to extract text from scanned/image PDFs."""
+    logger.info(f"Using Gemini Vision to extract text from: {file_path.name}")
+    try:
+        client = _get_gemini_client()  # type: ignore
+
+        # Upload the file to Gemini
+        with open(file_path, 'rb') as f:
+            file_bytes = f.read()
+
+        # Use Gemini to extract text from the PDF
+        response = _retry(  # type: ignore
+            client.models.generate_content,  # type: ignore
+            model="gemini-2.0-flash",
+            contents=[
+                genai_types.Content(  # type: ignore
+                    parts=[
+                        genai_types.Part.from_bytes(  # type: ignore
+                            data=file_bytes,
+                            mime_type="application/pdf",
+                        ),
+                        genai_types.Part.from_text(  # type: ignore
+                            "Extract ALL text content from this document. "
+                            "Include every piece of text you can see, preserving the structure. "
+                            "If it's a certificate, form, or official document, include all fields, "
+                            "names, dates, numbers, addresses, and any other information. "
+                            "Return ONLY the extracted text, no commentary."
+                        ),
+                    ]
+                )
+            ],
+        )
+
+        text = response.text.strip() if response and response.text else ""  # type: ignore
+        logger.info(f"Gemini extracted {len(text)} chars from {file_path.name}")
+        return text
+    except Exception as e:
+        logger.error(f"Gemini Vision extraction failed: {e}", exc_info=True)
+        return ""
+
+
 def _extract_text(file_path: Path) -> str:
     suffix = file_path.suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
         raise ValueError(f"Unsupported file type: {suffix}")
 
     if suffix == ".pdf":
-        reader = PdfReader(str(file_path))  # type: ignore
-        return "\n".join(page.extract_text() or "" for page in reader.pages)  # type: ignore
+        # Try pypdf first (fast, works for text-based PDFs)
+        try:
+            reader = PdfReader(str(file_path))  # type: ignore
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)  # type: ignore
+            text = text.strip()
+        except Exception as e:
+            logger.warning(f"pypdf failed: {e}")
+            text = ""
+
+        # If pypdf got very little or no text, use Gemini Vision (handles scanned/image PDFs)
+        if len(text) < 50:
+            logger.info(f"pypdf extracted only {len(text)} chars, falling back to Gemini Vision")
+            gemini_text = _extract_pdf_with_gemini(file_path)
+            if gemini_text:
+                text = gemini_text
+            elif not text:
+                logger.warning(f"Both pypdf and Gemini failed to extract text from {file_path.name}")
+
+        logger.info(f"PDF extraction result: {len(text)} chars from {file_path.name}")
+        return text
+
     if suffix in (".docx", ".doc"):
         doc = docx.Document(str(file_path))  # type: ignore
         return "\n".join(paragraph.text for paragraph in doc.paragraphs)  # type: ignore
