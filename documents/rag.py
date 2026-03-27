@@ -26,8 +26,8 @@ from .models import Document, DocumentChunk  # type: ignore
 logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".xlsx", ".xls", ".csv"}
-MAX_RETRIES = 3
-RETRY_BACKOFF = 2  # seconds
+MAX_RETRIES = 4
+RETRY_BACKOFF = 5  # seconds
 
 # Module-level cached clients (lazy-initialized)
 _pinecone_index = None
@@ -117,7 +117,8 @@ def _extract_pdf_with_gemini(file_path: Path) -> str:
         logger.info(f"Gemini extracted {len(text)} chars from {file_path.name}")
         return text
     except Exception as e:
-        logger.error(f"Gemini Vision extraction failed: {e}", exc_info=True)
+        import traceback
+        logger.error(f"Gemini Vision extraction failed: {traceback.format_exc()}")
         return ""
 
 
@@ -127,23 +128,24 @@ def _extract_text(file_path: Path) -> str:
         raise ValueError(f"Unsupported file type: {suffix}")
 
     if suffix == ".pdf":
-        # Try pypdf first (fast, works for text-based PDFs)
+        # Try PyMuPDF (fitz) first (very robust, handles complex layouts)
         try:
-            reader = PdfReader(str(file_path))  # type: ignore
-            text = "\n".join(page.extract_text() or "" for page in reader.pages)  # type: ignore
+            import fitz  # type: ignore
+            doc = fitz.open(str(file_path))
+            text = "\n".join(page.get_text() for page in doc)
             text = text.strip()
         except Exception as e:
-            logger.warning(f"pypdf failed: {e}")
+            logger.warning(f"PyMuPDF failed: {e}")
             text = ""
 
-        # If pypdf got very little or no text, use Gemini Vision (handles scanned/image PDFs)
+        # If PyMuPDF got very little or no text, use Gemini Vision (handles scanned/image PDFs)
         if len(text) < 50:
-            logger.info(f"pypdf extracted only {len(text)} chars, falling back to Gemini Vision")
+            logger.info(f"PyMuPDF extracted only {len(text)} chars, falling back to Gemini Vision")
             gemini_text = _extract_pdf_with_gemini(file_path)
             if gemini_text:
                 text = gemini_text
             elif not text:
-                logger.warning(f"Both pypdf and Gemini failed to extract text from {file_path.name}")
+                logger.warning(f"Both PyMuPDF and Gemini failed to extract text from {file_path.name}")
 
         logger.info(f"PDF extraction result: {len(text)} chars from {file_path.name}")
         return text
