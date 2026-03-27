@@ -1542,13 +1542,28 @@
       });
     };
 
+    const renderMarkdown = (text) => {
+      if (typeof marked !== 'undefined') {
+        return marked.parse(text);
+      }
+      // Inline fallback if marked.js CDN fails
+      return text
+        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/^[\-\*] (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+    };
+
     const addMessage = (role, content) => {
       const message = document.createElement("div");
       message.className = `message ${role}`;
-      if (role === 'assistant' && typeof marked !== 'undefined') {
-        // Render markdown for AI responses (like ChatGPT/Claude)
-        const rendered = marked.parse(content);
-        message.innerHTML = `<div class="message-content">${rendered}</div>`;
+      if (role === 'assistant') {
+        message.innerHTML = `<div class="message-content">${renderMarkdown(content)}</div>`;
       } else {
         message.innerHTML = `<div class="message-content">${content}</div>`;
       }
@@ -1579,6 +1594,33 @@
       renderDocuments(data.documents || []);
       showMainContent(true);
 
+      // Auto-reprocess documents with 0 chunks (old uploads before S3 fix)
+      if (data.documents) {
+        for (const doc of data.documents) {
+          if (doc.status === 'ready' && doc.chunk_count === 0) {
+            console.log(`Auto-reprocessing ${doc.name} (0 chunks)...`);
+            try {
+              const rpRes = await fetch(`/api/documents/${doc.id}/reprocess/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+              });
+              const rpData = await rpRes.json();
+              console.log(`Reprocess result for ${doc.name}:`, rpData);
+            } catch (e) {
+              console.error(`Reprocess failed for ${doc.name}:`, e);
+            }
+          }
+        }
+        // Reload session to reflect updated chunk counts
+        const hasZeroChunks = data.documents.some(d => d.status === 'ready' && d.chunk_count === 0);
+        if (hasZeroChunks) {
+          const refreshRes = await fetch(`/api/sessions/${sessionId}/`);
+          const refreshData = await refreshRes.json();
+          renderDocuments(refreshData.documents || []);
+          data.documents = refreshData.documents;
+        }
+      }
+
       // Enable/disable chat based on documents
       const hasReadyDocs = data.documents && data.documents.some(d => d.status === 'ready');
       questionInput.disabled = !hasReadyDocs;
@@ -1593,10 +1635,6 @@
         pollTimerId = setTimeout(() => {
           if (currentSessionId === sessionId) loadSession(sessionId);
         }, 3000);
-      }
-
-      if (!data.documents?.length) {
-        chatTitle.textContent = data.title || "Your Documents";
       }
 
       document.querySelectorAll(".session-item").forEach((item) => {
@@ -1825,10 +1863,12 @@
       msgDiv.className = "message assistant";
       const contentDiv = document.createElement("div");
       contentDiv.className = "message-content";
-      contentDiv.textContent = "";
+      contentDiv.innerHTML = '<span style="color:var(--text-light)">Thinking...</span>';
       msgDiv.appendChild(contentDiv);
       chatWindow.appendChild(msgDiv);
       chatWindow.scrollTop = chatWindow.scrollHeight;
+
+      let rawMarkdown = ""; // Accumulate raw markdown text
 
       try {
         const response = await fetch("/api/ask/stream/", {
@@ -1862,12 +1902,19 @@
               try {
                 const event = JSON.parse(line.slice(6));
                 if (event.type === "token") {
-                  contentDiv.textContent += event.content;
+                  rawMarkdown += event.content;
+                  // Render markdown progressively
+                  contentDiv.innerHTML = renderMarkdown(rawMarkdown);
                   chatWindow.scrollTop = chatWindow.scrollHeight;
                 }
               } catch (e) { /* ignore parse errors */ }
             }
           }
+        }
+
+        // Final render to ensure complete markdown is parsed
+        if (rawMarkdown) {
+          contentDiv.innerHTML = renderMarkdown(rawMarkdown);
         }
       } catch (err) {
         contentDiv.innerHTML = `<span style="color: #ef4444;">${err.message}</span>`;

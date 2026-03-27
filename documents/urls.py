@@ -57,5 +57,6 @@ urlpatterns = [
     path("api/search/", views.search_sessions, name="search_sessions"),
     path("api/analytics/", views.analytics_dashboard, name="analytics"),
     path("analytics/", views.analytics_page, name="analytics_page"),
+    path("api/documents/<int:document_id>/reprocess/", views.reprocess_document, name="reprocess_document"),
     path("api/debug/", debug_check, name="debug_check"),
 ]

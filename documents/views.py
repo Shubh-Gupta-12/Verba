@@ -106,6 +106,7 @@ def get_session(request, session_id):  # type: ignore
 				"name": doc.original_name,  # type: ignore
 				"status": doc.status,  # type: ignore
 				"uploaded_at": doc.uploaded_at.isoformat(),  # type: ignore
+				"chunk_count": doc.chunks.count(),  # type: ignore
 			}
 			for doc in documents  # type: ignore
 		]
@@ -413,6 +414,29 @@ def preview_document(request, document_id):  # type: ignore
 		"total_chunks": document.chunks.count(),  # type: ignore
 	})
 
+
+@csrf_exempt  # type: ignore
+@login_required  # type: ignore
+@require_http_methods(["POST"])  # type: ignore
+def reprocess_document(request, document_id):  # type: ignore
+	"""Re-process a document that has 0 chunks (e.g. old uploads before S3 fix)."""
+	try:
+		document = get_object_or_404(Document, id=document_id)  # type: ignore
+		chunk_count = document.chunks.count()  # type: ignore
+		if chunk_count > 0:
+			return JsonResponse({"status": "ok", "message": f"Document already has {chunk_count} chunks"})  # type: ignore
+
+		logger.info("Reprocessing document %s (ID: %s)", document.original_name, document.id)  # type: ignore
+		process_document(document)  # type: ignore
+		document.status = Document.STATUS_READY  # type: ignore
+		document.error_message = ""  # type: ignore
+		document.save(update_fields=["status", "error_message"])  # type: ignore
+		new_count = document.chunks.count()  # type: ignore
+		logger.info("Reprocessed: %s now has %s chunks", document.original_name, new_count)  # type: ignore
+		return JsonResponse({"status": "ok", "chunks": new_count})  # type: ignore
+	except Exception as exc:
+		logger.error("Reprocess failed for doc %s: %s", document_id, exc, exc_info=True)  # type: ignore
+		return JsonResponse({"status": "failed", "error": str(exc)}, status=500)  # type: ignore
 
 
 @csrf_exempt  # type: ignore
