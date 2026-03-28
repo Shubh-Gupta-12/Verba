@@ -8,6 +8,47 @@
   <link rel="icon" href="data:;base64,=">
   <title>Verba</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Toast Container -->
+  <style>
+    .toast-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .toast {
+      background-color: var(--surface-light);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transform: translateX(120%);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 350px;
+    }
+    .toast.show {
+      transform: translateX(0);
+    }
+    .toast-icon {
+      color: var(--primary);
+    }
+    .toast.error .toast-icon {
+      color: #ef4444;
+    }
+    .toast-message {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+  </style>
+  <div class="toast-container" id="toast-container"></div>
+
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
@@ -1398,9 +1439,37 @@
     const startChatBtn = document.getElementById("start-chat-btn");
     const mainContainer = document.getElementById("main-container");
     const noSessionMsg = document.getElementById("no-session-msg");
-
+    const toastContainer = document.getElementById("toast-container");
 
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+    const showToast = (message, type = 'info') => {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      const iconUrl = type === 'error' 
+        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />'
+        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+      toast.innerHTML = `
+        <div class="toast-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            ${iconUrl}
+          </svg>
+        </div>
+        <div class="toast-message">${message}</div>
+      `;
+      toastContainer.appendChild(toast);
+      
+      // Trigger animation
+      requestAnimationFrame(() => {
+        toast.classList.add('show');
+      });
+
+      // Remove after 4 seconds
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    };
 
     // Auto-resize textarea
     questionInput.addEventListener('input', function () {
@@ -1755,7 +1824,7 @@
     attachBtn.addEventListener('click', () => {
       const currentDocCount = attachedDocsContainer.querySelectorAll('.doc-chip').length;
       if (currentDocCount >= 5) {
-        alert("Maximum 5 documents per chat. Please remove one first.");
+        showToast("Maximum 5 documents per chat. Please remove one first.", "error");
         return;
       }
       uploadModalOverlay.classList.add('active');
@@ -1782,7 +1851,7 @@
       const remaining = 5 - currentDocCount;
 
       if (files.length > remaining) {
-        alert(`You can upload at most ${remaining} more document(s) (limit: 5 per chat). You selected ${files.length}.`);
+        showToast(`You can upload at most ${remaining} more document(s) (limit: 5 per chat). You selected ${files.length}.`, "error");
         return;
       }
 
@@ -1830,7 +1899,7 @@
         if (tempEl) tempEl.remove();
 
         if (data.status === "failed" || data.error) {
-          alert(`Upload failed: ${data.error || 'Unknown error'}`);
+          showToast(`Upload failed: ${data.error || 'Unknown error'}`, "error");
         } else {
           // Update session title in sidebar if changed
           const activeItem = document.querySelector(`.session-item.active .session-title`);
@@ -1841,7 +1910,7 @@
       } catch (err) {
         const tempEl = document.getElementById(tempId);
         if (tempEl) tempEl.remove();
-        alert(`Upload failed: ${err.message}`);
+        showToast(`Upload failed: ${err.message}`, "error");
       }
 
       loadSession(currentSessionId);

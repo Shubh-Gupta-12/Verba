@@ -81,39 +81,40 @@ def _get_groq_client():  # type: ignore
 
 
 def _extract_pdf_with_gemini(file_path: Path) -> str:
-    """Use Gemini Vision API to extract text from scanned/image PDFs."""
+    """Use Gemini Vision API to extract text by rendering pages to images first."""
     logger.info(f"Using Gemini Vision to extract text from: {file_path.name}")
     try:
+        import fitz  # type: ignore
         client = _get_gemini_client()  # type: ignore
-
-        # Upload the file to Gemini
-        with open(file_path, 'rb') as f:
-            file_bytes = f.read()
-
-        # Use Gemini to extract text from the PDF
-        response = _retry(  # type: ignore
-            client.models.generate_content,  # type: ignore
-            model="gemini-2.0-flash",
-            contents=[
-                genai_types.Content(  # type: ignore
-                    parts=[
-                        genai_types.Part.from_bytes(  # type: ignore
-                            data=file_bytes,
-                            mime_type="application/pdf",
-                        ),
-                        genai_types.Part.from_text(  # type: ignore
-                            "Extract ALL text content from this document. "
-                            "Include every piece of text you can see, preserving the structure. "
-                            "If it's a certificate, form, or official document, include all fields, "
-                            "names, dates, numbers, addresses, and any other information. "
-                            "Return ONLY the extracted text, no commentary."
-                        ),
-                    ]
-                )
-            ],
-        )
-
-        text = response.text.strip() if response and response.text else ""  # type: ignore
+        doc = fitz.open(str(file_path))
+        extracted_texts = []
+        
+        for page_num, page in enumerate(doc):
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+            img_bytes = pix.tobytes("jpeg")
+            
+            response = _retry(  # type: ignore
+                client.models.generate_content,  # type: ignore
+                model="gemini-2.0-flash",
+                contents=[
+                    genai_types.Content(  # type: ignore
+                        parts=[
+                            genai_types.Part.from_bytes(  # type: ignore
+                                data=img_bytes,
+                                mime_type="image/jpeg",
+                            ),
+                            genai_types.Part.from_text(  # type: ignore
+                                text="Extract all text from this image exactly as written. Return ONLY the extracted text, no commentary."
+                            ),
+                        ]
+                    )
+                ],
+            )
+            text_part = response.text.strip() if response and response.text else ""  # type: ignore
+            if text_part:
+                extracted_texts.append(text_part)
+                
+        text = "\n\n".join(extracted_texts).strip()
         logger.info(f"Gemini extracted {len(text)} chars from {file_path.name}")
         return text
     except Exception as e:
@@ -138,14 +139,14 @@ def _extract_text(file_path: Path) -> str:
             logger.warning(f"PyMuPDF failed: {e}")
             text = ""
 
-        # If PyMuPDF got very little or no text, use Gemini Vision (handles scanned/image PDFs)
+        # If PyMuPDF got very little or no text, use Gemini Vision (handles scanned/image PDFs securely)
         if len(text) < 50:
-            logger.info(f"PyMuPDF extracted only {len(text)} chars, falling back to Gemini Vision")
+            logger.info(f"PyMuPDF extracted only {len(text)} chars, falling back to Gemini Vision OCR")
             gemini_text = _extract_pdf_with_gemini(file_path)
             if gemini_text:
                 text = gemini_text
             elif not text:
-                logger.warning(f"Both PyMuPDF and Gemini failed to extract text from {file_path.name}")
+                logger.warning(f"All OCR fallbacks failed to extract text from {file_path.name}")
 
         logger.info(f"PDF extraction result: {len(text)} chars from {file_path.name}")
         return text

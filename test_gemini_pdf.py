@@ -1,8 +1,8 @@
 import os
 import sys
-from dotenv import load_dotenv
+from dotenv import load_dotenv # type: ignore
 load_dotenv()
-from google import genai
+from google import genai # type: ignore
 from google.genai import types as genai_types
 
 # Create a small dummy PDF
