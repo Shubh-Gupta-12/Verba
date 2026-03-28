@@ -53,10 +53,11 @@ urlpatterns = [
     path("api/documents/", views.list_documents, name="list_documents"),
     path("api/documents/<int:document_id>/delete/", views.delete_document, name="delete_document"),
     path("api/documents/<int:document_id>/preview/", views.preview_document, name="preview_document"),
+    path("api/documents/<int:document_id>/status/", views.document_status, name="document_status"),
+    path("api/documents/<int:document_id>/reprocess/", views.reprocess_document, name="reprocess_document"),
     path("api/models/", views.list_models, name="list_models"),
     path("api/search/", views.search_sessions, name="search_sessions"),
     path("api/analytics/", views.analytics_dashboard, name="analytics"),
     path("analytics/", views.analytics_page, name="analytics_page"),
-    path("api/documents/<int:document_id>/reprocess/", views.reprocess_document, name="reprocess_document"),
     path("api/debug/", debug_check, name="debug_check"),
 ]

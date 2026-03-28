@@ -81,15 +81,15 @@ def _get_groq_client():  # type: ignore
 
 
 def _extract_pdf_with_gemini(file_path: Path) -> str:
-    """Use Gemini Vision API to extract text by rendering pages to images first."""
+    """Use Gemini Vision API to extract text by rendering pages to images first (in parallel)."""
     logger.info(f"Using Gemini Vision to extract text from: {file_path.name}")
     try:
         import fitz  # type: ignore
+        import concurrent.futures
         client = _get_gemini_client()  # type: ignore
         doc = fitz.open(str(file_path))
-        extracted_texts = []
         
-        for page_num, page in enumerate(doc):
+        def process_page(page_num, page):
             pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
             img_bytes = pix.tobytes("jpeg")
             
@@ -111,11 +111,19 @@ def _extract_pdf_with_gemini(file_path: Path) -> str:
                 ],
             )
             text_part = response.text.strip() if response and response.text else ""  # type: ignore
-            if text_part:
-                extracted_texts.append(text_part)
+            return page_num, text_part
+            
+        # Run OCR on all pages in parallel (up to 5 workers to avoid instant 429)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(process_page, page_num, page) for page_num, page in enumerate(doc)]
+            results = [future.result() for future in concurrent.futures.as_completed(futures)]
+            
+        # Reconstruct pages in original sequential order
+        results.sort(key=lambda x: x[0])
+        extracted_texts = [text for _, text in results if text]
                 
         text = "\n\n".join(extracted_texts).strip()
-        logger.info(f"Gemini extracted {len(text)} chars from {file_path.name}")
+        logger.info(f"Gemini parallel OCR extracted {len(text)} chars from {file_path.name}")
         return text
     except Exception as e:
         import traceback

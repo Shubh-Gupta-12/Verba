@@ -1836,6 +1836,28 @@
       if (e.target === uploadModalOverlay) uploadModalOverlay.classList.remove('active');
     });
 
+    const pollDocumentStatus = async (docId, tempEl) => {
+      try {
+        const response = await fetch(`/api/documents/${docId}/status/`);
+        const data = await response.json();
+        
+        if (data.status === 'processing') {
+          setTimeout(() => pollDocumentStatus(docId, tempEl), 2500);
+        } else {
+          if (tempEl) tempEl.remove();
+          if (data.status === 'failed') {
+            showToast(`Processing failed: ${data.error}`, "error");
+          } else {
+            showToast(`Document "${data.name || ''}" processed successfully.`, "info");
+          }
+          if (currentSessionId) loadSession(currentSessionId);
+        }
+      } catch (err) {
+        console.error("Polling document status failed", err);
+        setTimeout(() => pollDocumentStatus(docId, tempEl), 5000);
+      }
+    };
+
     uploadArea.addEventListener("click", () => fileInput.click());
 
     fileInput.addEventListener("change", () => {
@@ -1894,13 +1916,20 @@
           data = { error: `Server error (${response.status}). Please try again.` };
         }
 
-        // Remove temp doc
         const tempEl = document.getElementById(tempId);
-        if (tempEl) tempEl.remove();
-
+        
         if (data.status === "failed" || data.error) {
+          if (tempEl) tempEl.remove();
           showToast(`Upload failed: ${data.error || 'Unknown error'}`, "error");
+        } else if (data.status === "processing") {
+          // Update session title in sidebar if changed
+          const activeItem = document.querySelector(`.session-item.active .session-title`);
+          if (activeItem && activeItem.textContent === 'New Chat') {
+            activeItem.textContent = file.name.substring(0, 50);
+          }
+          pollDocumentStatus(data.id, tempEl);
         } else {
+          if (tempEl) tempEl.remove();
           // Update session title in sidebar if changed
           const activeItem = document.querySelector(`.session-item.active .session-title`);
           if (activeItem && activeItem.textContent === 'New Chat') {
@@ -1913,7 +1942,6 @@
         showToast(`Upload failed: ${err.message}`, "error");
       }
 
-      loadSession(currentSessionId);
       // Close upload modal
       uploadModalOverlay.classList.remove('active');
     };

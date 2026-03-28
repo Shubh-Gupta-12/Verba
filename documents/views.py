@@ -21,6 +21,35 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+import threading
+from django.db import connection  # type: ignore
+
+def process_document_background(document_id: int):
+	import django  # type: ignore
+	if not django.apps.apps.ready:
+		django.setup()
+	try:
+		from .models import Document  # type: ignore
+		from .rag import process_document  # type: ignore
+		document = Document.objects.get(id=document_id)  # type: ignore
+		process_document(document)
+		document.status = Document.STATUS_READY  # type: ignore
+		document.error_message = ""
+		document.save(update_fields=["status", "error_message"])
+	except Exception as exc:
+		logger.error(f"Async processing failed for {document_id}: {exc}", exc_info=True)
+		try:
+			from .models import Document  # type: ignore
+			document = Document.objects.get(id=document_id)  # type: ignore
+			document.status = Document.STATUS_FAILED  # type: ignore
+			document.error_message = str(exc)
+			document.save(update_fields=["status", "error_message"])
+		except Exception:
+			pass
+	finally:
+		connection.close()
+
+
 def check_chat_limit(user):  # type: ignore
 	# Free tier: 50 messages per 3 hours
 	limit = 50
@@ -174,28 +203,28 @@ def upload_document(request):  # type: ignore
 					original_name=upload.name,  # type: ignore
 					session=session
 				)
+				document.status = "processing"
+				document.save(update_fields=["status"])
 			except Exception as exc:
 				logger.error("Failed to save document %s: %s", upload.name, exc, exc_info=True)  # type: ignore
 				results.append({"name": upload.name, "status": "failed", "error": f"Failed to save: {exc}"})  # type: ignore
 				continue
 
 			try:
-				process_document(document)  # type: ignore
-				document.status = Document.STATUS_READY  # type: ignore
-				document.error_message = ""  # type: ignore
-				logger.info("Document uploaded successfully: %s", upload.name)  # type: ignore
+				t = threading.Thread(target=process_document_background, args=(document.id,))
+				t.start()
+				logger.info("Started background processing for: %s", upload.name)  # type: ignore
 			except Exception as exc:
-				document.status = Document.STATUS_FAILED  # type: ignore
-				document.error_message = str(exc)  # type: ignore
-				logger.error("Document processing failed: %s - %s", upload.name, exc, exc_info=True)  # type: ignore
-			finally:
-				document.save(update_fields=["status", "error_message"])  # type: ignore
+				document.status = "failed"
+				document.error_message = str(exc)
+				document.save(update_fields=["status", "error_message"])
+				logger.error("Background thread failed: %s - %s", upload.name, exc, exc_info=True)  # type: ignore
 
 			results.append({  # type: ignore
 				"id": document.id,  # type: ignore
 				"name": document.original_name,  # type: ignore
-				"status": document.status,  # type: ignore
-				"error": document.error_message or "",  # type: ignore
+				"status": "processing",  # Immediately return processing status
+				"error": "", 
 			})
 
 		# Update session title based on first document if it's still "New Chat"
@@ -427,16 +456,26 @@ def reprocess_document(request, document_id):  # type: ignore
 			return JsonResponse({"status": "ok", "message": f"Document already has {chunk_count} chunks"})  # type: ignore
 
 		logger.info("Reprocessing document %s (ID: %s)", document.original_name, document.id)  # type: ignore
-		process_document(document)  # type: ignore
-		document.status = Document.STATUS_READY  # type: ignore
-		document.error_message = ""  # type: ignore
-		document.save(update_fields=["status", "error_message"])  # type: ignore
-		new_count = document.chunks.count()  # type: ignore
-		logger.info("Reprocessed: %s now has %s chunks", document.original_name, new_count)  # type: ignore
-		return JsonResponse({"status": "ok", "chunks": new_count})  # type: ignore
+		document.status = "processing"
+		document.save(update_fields=["status"])
+		t = threading.Thread(target=process_document_background, args=(document.id,))
+		t.start()
+		return JsonResponse({"status": "processing", "message": "Document is processing in background"})  # type: ignore
 	except Exception as exc:
 		logger.error("Reprocess failed for doc %s: %s", document_id, exc, exc_info=True)  # type: ignore
 		return JsonResponse({"status": "failed", "error": str(exc)}, status=500)  # type: ignore
+
+
+@login_required  # type: ignore
+@require_http_methods(["GET"])  # type: ignore
+def document_status(request, document_id):  # type: ignore
+	document = get_object_or_404(Document, id=document_id)  # type: ignore
+	return JsonResponse({  # type: ignore
+		"id": document.id,  # type: ignore
+		"status": document.status,  # type: ignore
+		"error": document.error_message or "",  # type: ignore
+		"chunk_count": document.chunks.count()  # type: ignore
+	})
 
 
 @csrf_exempt  # type: ignore
