@@ -115,7 +115,7 @@ def _extract_pdf_with_gemini(file_path: Path) -> str:
             
         # Run OCR on all pages in parallel (up to 5 workers to avoid instant 429)
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(process_page, page_num, page) for page_num, page in enumerate(doc)]
+            futures = [executor.submit(process_page, page_num, page) for page_num, page in enumerate(doc)] # type: ignore
             results = [future.result() for future in concurrent.futures.as_completed(futures)]
             
         # Reconstruct pages in original sequential order

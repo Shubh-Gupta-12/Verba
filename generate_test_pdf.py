@@ -1,4 +1,4 @@
-import requests
+import requests # type: ignore
 def download_test_pdf():
     # Download a sample 5-page PDF for testing
     url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
